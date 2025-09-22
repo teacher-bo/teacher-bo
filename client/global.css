@@ -1,0 +1,20 @@
+#root {
+  max-width: 440px;
+  margin: 0 auto;
+}
+
+img {
+  user-select: none;
+  user-drag: none;
+  -webkit-user-drag: none;
+  user-select: none;
+  -moz-user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Ensure the top bar stays at the top of the viewport */
+body {
+  padding-top: 0;
+  margin-top: 0;
+}
