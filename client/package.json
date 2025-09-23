@@ -5,6 +5,10 @@
   "main": "index.js",
   "version": "1.0.0",
   "packageManager": "yarn@1.22.22",
+  "engines": {
+    "node": ">=22.14.0 <23.0.0",
+    "yarn": "1.22.22"
+  },
   "scripts": {
     "start": "expo start",
     "start:clear": "expo start --clear",
