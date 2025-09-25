@@ -10,18 +10,18 @@
     "yarn": "1.22.22"
   },
   "scripts": {
-    "start": "expo start",
-    "start:clear": "expo start --clear",
+    "start": "RCT_METRO_PORT=1001 expo start --port 1001",
     "start:tunnel": "expo start --tunnel",
-    "prebuild": "expo prebuild",
-    "android": "expo run:android",
-    "ios": "expo run:ios",
-    "web": "expo start --web",
-    "lint": "expo lint",
-    "type-check": "tsc --noEmit",
-    "clean": "rm -rf node_modules && yarn install",
-    "build:android": "expo build:android",
-    "build:ios": "expo build:ios"
+    "prebuild": "expo prebuild --yarn",
+    "android": "RCT_METRO_PORT=1001 expo run:android",
+    "ios": "RCT_METRO_PORT=1001 expo run:ios",
+    "dev:android": "RCT_METRO_PORT=1001 yarn prebuild --platform android --clean && yarn android --no-build-cache --port 1001",
+    "dev:ios": "RCT_METRO_PORT=1001 yarn prebuild --platform ios --clean && yarn ios --no-build-cache --port 1001",
+    "deploy:ios": "eas build --platform ios --profile production && eas submit --platform ios",
+    "deploy:android": "eas build --platform android --profile production && eas submit --platform android",
+    "export:web": "expo export --platform web",
+    "deploy:web": "PORT=1001 serve -s dist",
+    "lint": "expo lint"
   },
   "dependencies": {
     "@babel/plugin-proposal-export-namespace-from": "^7.18.9",
