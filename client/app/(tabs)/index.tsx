@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Audio } from "expo-av";
 import * as Speech from "expo-speech";
 import { ThemedText } from "@/components/ThemedText";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 interface Message {
   id: string;
@@ -25,6 +26,44 @@ export default function HomeScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
+  // ([
+  //   {
+  //     id: "1",
+  //     text: "보쌤!",
+  //     isUser: true,
+  //     timestamp: new Date(),
+  //   },
+  //   {
+  //     id: "2",
+  //     text: "네, 무엇을 도와드릴까요?",
+  //     isUser: false,
+  //     timestamp: new Date(),
+  //   },
+  //   {
+  //     id: "3",
+  //     text: "사보타지 게임에서 6명이 플레이 할 때 역할카드 몇 개 중에서 뽑아가야해?",
+  //     isUser: true,
+  //     timestamp: new Date(),
+  //   },
+  //   {
+  //     id: "4",
+  //     text: "사보타지 게임에서 6명이 플레이할 때는 역할 카드 9장 중에서 뽑아가야 합니다. (광부 5장, 사보타지 3장, 예언자 1장)",
+  //     isUser: false,
+  //     timestamp: new Date(),
+  //   },
+  //   {
+  //     id: "5",
+  //     text: "디럭스판이랑 차이가 있나?",
+  //     isUser: true,
+  //     timestamp: new Date(),
+  //   },
+  //   {
+  //     id: "6",
+  //     text: "아니요, 디럭스 버전과 일반 버전의 역할 카드 구성은 동일합니다.",
+  //     isUser: false,
+  //     timestamp: new Date(),
+  //   },
+  // ]);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
 
   const addMessage = (text: string, isUser: boolean) => {
@@ -173,17 +212,50 @@ export default function HomeScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* 메시지 영역 */}
       <ScrollView
+        contentContainerStyle={{
+          justifyContent: "center",
+        }}
         style={styles.messagesContainer}
         showsVerticalScrollIndicator={false}
       >
         {messages.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Ionicons name="mic" size={48} color="#666" />
+            <View style={styles.micContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.micButton,
+                  isRecording && styles.micButtonRecording,
+                  (isLoading || isSpeaking) && styles.micButtonDisabled,
+                ]}
+                onPress={toggleRecording}
+                disabled={isLoading || isSpeaking}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="large" color="white" />
+                ) : (
+                  <Ionicons
+                    name={isRecording ? "stop" : "mic"}
+                    size={32}
+                    color="white"
+                  />
+                )}
+              </TouchableOpacity>
+
+              <Text style={styles.micStatusText}>
+                {isRecording
+                  ? "듣는 중..."
+                  : isLoading
+                  ? "처리 중..."
+                  : isSpeaking
+                  ? "음성 재생 중..."
+                  : ""}
+              </Text>
+            </View>
             <ThemedText style={styles.emptyText}>
-              마이크 버튼을 눌러 음성으로 질문해보세요
+              "보쌤"을 불러보세요!
             </ThemedText>
             <ThemedText style={styles.emptySubText}>
               보드게임 규칙, 전략, 추천 등 무엇이든 물어보세요!
@@ -218,40 +290,7 @@ export default function HomeScreen() {
           </View>
         )}
       </ScrollView>
-
-      {/* 중앙 마이크 버튼 */}
-      <View style={styles.micContainer}>
-        <TouchableOpacity
-          style={[
-            styles.micButton,
-            isRecording && styles.micButtonRecording,
-            (isLoading || isSpeaking) && styles.micButtonDisabled,
-          ]}
-          onPress={toggleRecording}
-          disabled={isLoading || isSpeaking}
-        >
-          {isLoading ? (
-            <ActivityIndicator size="large" color="white" />
-          ) : (
-            <Ionicons
-              name={isRecording ? "stop" : "mic"}
-              size={32}
-              color="white"
-            />
-          )}
-        </TouchableOpacity>
-
-        <Text style={styles.micStatusText}>
-          {isRecording
-            ? "녹음 중... 탭하여 중지"
-            : isLoading
-            ? "처리 중..."
-            : isSpeaking
-            ? "음성 재생 중..."
-            : "탭하여 음성 질문하기"}
-        </Text>
-      </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -262,22 +301,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   messagesContainer: {
-    flex: 1,
     paddingTop: 20,
   },
   emptyContainer: {
-    flex: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 32,
-    marginTop: 100,
+    marginTop: 40,
   },
   emptyText: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "600",
     color: "#fff",
     textAlign: "center",
-    marginTop: 16,
     marginBottom: 8,
   },
   emptySubText: {
@@ -291,7 +327,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 20,
-    marginVertical: 4,
+    marginVertical: 8,
   },
   userMessage: {
     backgroundColor: "#007AFF",
@@ -326,8 +362,6 @@ const styles = StyleSheet.create({
   },
   micContainer: {
     alignItems: "center",
-    paddingVertical: 40,
-    paddingBottom: 60,
   },
   micButton: {
     width: 80,
