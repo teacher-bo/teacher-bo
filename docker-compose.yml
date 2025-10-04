@@ -1,4 +1,20 @@
 services:
+  mysql:
+    image: mysql:9.3.0
+    container_name: mysql
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-password}
+      MYSQL_DATABASE: ${DB_NAME:-teacher-bo}
+      MYSQL_USER: ${DB_USER:-user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-password}
+    env_file:
+      - .env
+
   redis-stack:
     image: redis/redis-stack:latest
     container_name: redis-stack
@@ -14,4 +30,5 @@ services:
       - .env
 
 volumes:
+  mysql-data:
   redis-data:

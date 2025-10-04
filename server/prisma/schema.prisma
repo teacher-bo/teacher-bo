@@ -1,0 +1,121 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String   @unique
+  password  String
+  name      String?
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 보드게임 관련
+  games     Game[]
+  sessions  GameSession[]
+  
+  @@map("users")
+}
+
+model Game {
+  id          String   @id @default(cuid())
+  name        String
+  description String?  @db.Text
+  minPlayers  Int      @default(1)
+  maxPlayers  Int      @default(1)
+  playTime    Int?     // 분 단위
+  complexity  Int?     @default(1) // 1-5 복잡도
+  imageUrl    String?
+  bggId       Int?     @unique // BoardGameGeek ID
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 관계
+  createdBy   User         @relation(fields: [createdById], references: [id])
+  createdById String
+  sessions    GameSession[]
+  rules       GameRule[]
+
+  @@map("games")
+}
+
+model GameRule {
+  id        String   @id @default(cuid())
+  title     String
+  content   String   @db.Text
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 관계
+  game   Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  gameId String
+
+  @@map("game_rules")
+}
+
+model GameSession {
+  id          String            @id @default(cuid())
+  startedAt   DateTime          @default(now())
+  endedAt     DateTime?
+  status      GameSessionStatus @default(PLAYING)
+  playerCount Int
+  notes       String?           @db.Text
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  // 관계
+  game   Game   @relation(fields: [gameId], references: [id])
+  gameId String
+  host   User   @relation(fields: [hostId], references: [id])
+  hostId String
+
+  players SessionPlayer[]
+  scores  PlayerScore[]
+
+  @@map("game_sessions")
+}
+
+model SessionPlayer {
+  id       String @id @default(cuid())
+  nickname String
+  color    String?
+  order    Int    @default(0)
+
+  // 관계
+  session   GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId String
+  scores    PlayerScore[]
+
+  @@map("session_players")
+}
+
+model PlayerScore {
+  id    String @id @default(cuid())
+  score Int    @default(0)
+  round Int    @default(1)
+
+  // 관계
+  session   GameSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId String
+  player    SessionPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  playerId  String
+
+  @@map("player_scores")
+}
+
+enum GameSessionStatus {
+  PLAYING
+  COMPLETED
+  PAUSED
+}
