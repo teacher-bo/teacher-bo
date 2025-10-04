@@ -14,15 +14,14 @@ import { SessionsModule } from './sessions/sessions.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: '.env',
+      envFilePath: ['.env', '../.env'],
     }),
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
       autoSchemaFile: true,
       playground: process.env.NODE_ENV === 'development',
-      introspection: true,
-      context: ({ req, res }) => ({ req, res }),
+      sortSchema: true,
+      path: '/api/graphql',
     }),
     ThrottlerModule.forRoot([
       {
