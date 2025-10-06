@@ -10,11 +10,13 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { GamesModule } from './games/games.module';
 import { SessionsModule } from './sessions/sessions.module';
+import { TranscribeModule } from './transcribe/transcribe.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       envFilePath: ['.env', '../.env'],
+      isGlobal: true, // ConfigModule을 전역으로 설정
     }),
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
@@ -22,6 +24,12 @@ import { SessionsModule } from './sessions/sessions.module';
       playground: process.env.NODE_ENV === 'development',
       sortSchema: true,
       path: '/api/graphql',
+      subscriptions: {
+        'graphql-ws': {
+          path: '/api/graphql',
+        },
+      },
+      installSubscriptionHandlers: true,
     }),
     ThrottlerModule.forRoot([
       {
@@ -35,6 +43,7 @@ import { SessionsModule } from './sessions/sessions.module';
     UsersModule,
     GamesModule,
     SessionsModule,
+    TranscribeModule,
   ],
 })
 export class AppModule {}

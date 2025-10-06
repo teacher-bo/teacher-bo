@@ -73,6 +73,29 @@ const config: ExpoConfig = {
   },
   scheme: "board-game-assistant",
   plugins: [
+    [
+      "react-native-audio-api",
+      {
+        iosBackgroundMode: true,
+        iosMicrophonePermission:
+          "This app requires access to the microphone to record audio.",
+        androidPermissions: [
+          "android.permission.MODIFY_AUDIO_SETTINGS",
+          "android.permission.FOREGROUND_SERVICE",
+          "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        ],
+        androidForegroundService: true,
+        androidFSTypes: ["mediaPlayback"],
+      },
+    ],
+    "@siteed/expo-audio-studio",
+    [
+      "expo-audio",
+      {
+        microphonePermission:
+          "Allow $(PRODUCT_NAME) to access your microphone.",
+      },
+    ],
     "expo-router",
     "expo-dev-client",
     [

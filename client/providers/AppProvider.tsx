@@ -1,5 +1,7 @@
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ApolloProvider } from "@apollo/client/react";
+import { apolloClient } from "../services/apolloClient";
 import { GlobalProvider } from "./GlobalProvider";
 
 // Create a client
@@ -23,9 +25,11 @@ interface AppProviderProps {
 
 export function AppProvider({ children }: AppProviderProps) {
   return (
-    <QueryClientProvider client={queryClient}>
-      <GlobalProvider>{children}</GlobalProvider>
-    </QueryClientProvider>
+    <ApolloProvider client={apolloClient}>
+      <QueryClientProvider client={queryClient}>
+        <GlobalProvider>{children}</GlobalProvider>
+      </QueryClientProvider>
+    </ApolloProvider>
   );
 }
 

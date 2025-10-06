@@ -7,7 +7,6 @@ import React, {
 } from "react";
 import { useColorScheme } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
-import { storage } from "../utils/storage";
 import {
   User,
   BoardGame,
@@ -637,20 +636,6 @@ interface GlobalContextType {
 
 const GlobalContext = createContext<GlobalContextType | undefined>(undefined);
 
-// Storage keys
-const STORAGE_KEYS = {
-  USER: "user_data",
-  FAVORITES: "favorite_games",
-  RECENTLY_PLAYED: "recently_played_games",
-  COLLECTIONS: "game_collections",
-  WISHLIST: "wishlist",
-  SEARCH_HISTORY: "search_history",
-  FAVORITE_VENUES: "favorite_venues",
-  PREFERENCES: "user_preferences",
-  SESSION_HISTORY: "session_history",
-  NOTIFICATIONS: "notifications",
-} as const;
-
 // Provider Component
 interface GlobalProviderProps {
   children: ReactNode;
@@ -660,126 +645,10 @@ export function GlobalProvider({ children }: GlobalProviderProps) {
   const [state, dispatch] = useReducer(globalReducer, initialState);
   const systemColorScheme = useColorScheme();
 
-  // Load data from storage on app start
   useEffect(() => {
-    loadDataFromStorage();
     setupNetworkListener();
-    return () => {
-      // Cleanup network listener
-    };
+    return () => {};
   }, []);
-
-  // Save data to storage when state changes
-  useEffect(() => {
-    saveDataToStorage();
-  }, [state.user, state.boardGames, state.notifications]);
-
-  const loadDataFromStorage = async () => {
-    try {
-      const [
-        userData,
-        favorites,
-        recentlyPlayed,
-        collections,
-        wishlist,
-        searchHistory,
-        favoriteVenues,
-        sessionHistory,
-        notifications,
-      ] = await Promise.all([
-        storage.getItem<User>(STORAGE_KEYS.USER),
-        storage.getItem<string[]>(STORAGE_KEYS.FAVORITES),
-        storage.getItem<string[]>(STORAGE_KEYS.RECENTLY_PLAYED),
-        storage.getItem<GameCollection[]>(STORAGE_KEYS.COLLECTIONS),
-        storage.getItem<string[]>(STORAGE_KEYS.WISHLIST),
-        storage.getItem<string[]>(STORAGE_KEYS.SEARCH_HISTORY),
-        storage.getItem<string[]>(STORAGE_KEYS.FAVORITE_VENUES),
-        storage.getItem<GameSession[]>(STORAGE_KEYS.SESSION_HISTORY),
-        storage.getItem<Notification[]>(STORAGE_KEYS.NOTIFICATIONS),
-      ]);
-
-      if (userData) {
-        dispatch({ type: "SET_USER", payload: userData });
-      }
-
-      if (favorites) {
-        favorites.forEach((id: string) => {
-          dispatch({ type: "ADD_FAVORITE", payload: id });
-        });
-      }
-
-      if (recentlyPlayed) {
-        recentlyPlayed.forEach((id: string) => {
-          dispatch({ type: "ADD_RECENTLY_PLAYED", payload: id });
-        });
-      }
-
-      if (collections) {
-        dispatch({ type: "SET_COLLECTIONS", payload: collections });
-      }
-
-      if (wishlist) {
-        wishlist.forEach((id: string) => {
-          dispatch({ type: "ADD_TO_WISHLIST", payload: id });
-        });
-      }
-
-      if (searchHistory) {
-        searchHistory.forEach((term: string) => {
-          dispatch({ type: "ADD_SEARCH_TERM", payload: term });
-        });
-      }
-
-      if (favoriteVenues) {
-        favoriteVenues.forEach((id: string) => {
-          dispatch({ type: "ADD_FAVORITE_VENUE", payload: id });
-        });
-      }
-
-      if (sessionHistory) {
-        sessionHistory.forEach((session: GameSession) => {
-          dispatch({ type: "ADD_SESSION_TO_HISTORY", payload: session });
-        });
-      }
-
-      if (notifications) {
-        notifications.forEach((notification: Notification) => {
-          dispatch({ type: "ADD_NOTIFICATION", payload: notification });
-        });
-      }
-
-      dispatch({ type: "SET_FIRST_LAUNCH", payload: false });
-    } catch (error) {
-      console.error("Error loading data from storage:", error);
-    }
-  };
-
-  const saveDataToStorage = async () => {
-    try {
-      await Promise.all([
-        storage.setItem(STORAGE_KEYS.USER, state.user),
-        storage.setItem(STORAGE_KEYS.FAVORITES, state.boardGames.favorites),
-        storage.setItem(
-          STORAGE_KEYS.RECENTLY_PLAYED,
-          state.boardGames.recentlyPlayed
-        ),
-        storage.setItem(STORAGE_KEYS.COLLECTIONS, state.boardGames.collections),
-        storage.setItem(STORAGE_KEYS.WISHLIST, state.boardGames.wishlist),
-        storage.setItem(
-          STORAGE_KEYS.SEARCH_HISTORY,
-          state.boardGames.searchHistory
-        ),
-        storage.setItem(
-          STORAGE_KEYS.FAVORITE_VENUES,
-          state.locations.favoriteVenues
-        ),
-        storage.setItem(STORAGE_KEYS.SESSION_HISTORY, state.sessions.history),
-        storage.setItem(STORAGE_KEYS.NOTIFICATIONS, state.notifications.items),
-      ]);
-    } catch (error) {
-      console.error("Error saving data to storage:", error);
-    }
-  };
 
   const setupNetworkListener = () => {
     const unsubscribe = NetInfo.addEventListener((netInfoState) => {
