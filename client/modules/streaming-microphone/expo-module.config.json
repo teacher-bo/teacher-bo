@@ -1,9 +1,0 @@
-{
-  "platforms": ["ios", "android"],
-  "ios": {
-    "modules": ["StreamingMicrophoneModule"]
-  },
-  "android": {
-    "modules": ["expo.modules.streamingmicrophone.StreamingMicrophoneModule"]
-  }
-}

@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   Text,
   Alert,
-  ActivityIndicator,
   ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -151,7 +150,7 @@ export default function HomeScreen() {
         style={styles.messagesContainer}
         showsVerticalScrollIndicator={false}
       >
-        {/* <RnApiAudioRecorder /> */}
+        {/* {<RnApiAudioRecorder />} */}
         {messages.length === 0 ? (
           <View style={styles.emptyContainer}>
             <View style={styles.micContainer}>
