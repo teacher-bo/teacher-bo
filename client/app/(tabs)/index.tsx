@@ -66,7 +66,7 @@ export default function HomeScreen() {
       }
     },
     {
-      wakeWords: ["보쌤", "보셈"],
+      wakeWords: ["보쌤", "보셈", "보샘"],
       language: "ko-KR",
       sensitivity: 0.6,
       continuous: true,

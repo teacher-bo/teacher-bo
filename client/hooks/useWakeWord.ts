@@ -101,7 +101,6 @@ export const useWakeWord = (
 
   // Web Speech Recognition 인스턴스 저장
   const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const restartTimeoutRef = useRef<number | null>(null);
 
   // 웨이크워드 감지 함수
   const checkForWakeWords = useCallback(
@@ -182,48 +181,45 @@ export const useWakeWord = (
         window.SpeechRecognition || window.webkitSpeechRecognition;
 
       if (SpeechRecognitionAPI) {
-        const recognition = new SpeechRecognitionAPI();
-        recognitionRef.current = recognition;
+        if (!recognitionRef.current) {
+          recognitionRef.current = new SpeechRecognitionAPI();
+        }
 
+        const recognition = recognitionRef.current;
         recognition.continuous = options.continuous || true;
         recognition.interimResults = true;
         recognition.lang = options.language || "ko-KR";
         recognition.maxAlternatives = 1;
 
-        recognition.onstart = () => {
+        const handleStart = () => {
           console.log("Web Speech: Recognition started");
           setIsListening(true);
           setError(null);
         };
 
-        recognition.onend = () => {
+        const handleEnd = () => {
           console.log("Web Speech: Recognition ended");
           setIsListening(false);
 
-          // 자동 재시작 (continuous listening) - 단, 이미 재시작 중이 아닐 때만
-          if (options.continuous && !restartTimeoutRef.current) {
-            restartTimeoutRef.current = window.setTimeout(() => {
-              if (recognitionRef.current && !isListening) {
-                try {
-                  recognitionRef.current.start();
-                } catch (error) {
-                  console.warn("Failed to restart recognition:", error);
-                }
-              }
-              restartTimeoutRef.current = null;
-            }, 1000);
+          if (options.continuous) {
+            recognition.start();
           }
         };
 
-        recognition.onerror = (event) => {
+        const handleError = (event: any) => {
           console.error("Web Speech: Recognition error", event.error);
           setError(`Speech recognition error: ${event.error}`);
           setIsListening(false);
         };
 
-        recognition.onresult = (event: SpeechRecognitionEvent) => {
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            const result = event.results[i];
+        const handleResult = (event: Event) => {
+          const speechEvent = event as unknown as SpeechRecognitionEvent;
+          for (
+            let i = speechEvent.resultIndex;
+            i < speechEvent.results.length;
+            i++
+          ) {
+            const result = speechEvent.results[i];
             if (result.length > 0) {
               const transcript = result[0].transcript;
               const confidence = result[0].confidence;
@@ -235,22 +231,27 @@ export const useWakeWord = (
                 confidence
               );
 
-              // 신뢰도 체크 (옵션)
               if (confidence >= (options.sensitivity || 0.8)) {
                 checkForWakeWords(transcript);
               }
             }
           }
         };
+
+        recognition.addEventListener("start", handleStart);
+        recognition.addEventListener("end", handleEnd);
+        recognition.addEventListener("error", handleError);
+        recognition.addEventListener("result", handleResult);
+
+        return () => {
+          recognition.removeEventListener("start", handleStart);
+          recognition.removeEventListener("end", handleEnd);
+          recognition.removeEventListener("error", handleError);
+          recognition.removeEventListener("result", handleResult);
+        };
       }
     }
-
-    return () => {
-      if (restartTimeoutRef.current) {
-        window.clearTimeout(restartTimeoutRef.current);
-      }
-    };
-  }, [isSupported, options, checkForWakeWords]);
+  }, [isSupported, checkForWakeWords]);
 
   const startListening = useCallback(async (): Promise<void> => {
     try {
@@ -278,11 +279,6 @@ export const useWakeWord = (
 
   const stopListening = useCallback(async (): Promise<void> => {
     try {
-      if (restartTimeoutRef.current) {
-        window.clearTimeout(restartTimeoutRef.current);
-        restartTimeoutRef.current = null;
-      }
-
       if (Platform.OS === "web") {
         if (recognitionRef.current) {
           recognitionRef.current.stop();
