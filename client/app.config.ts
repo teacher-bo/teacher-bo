@@ -68,8 +68,9 @@ const config: ExpoConfig = {
     ],
   },
   web: {
-    favicon: "./assets/favicon.png",
     bundler: "metro",
+    output: "static",
+    favicon: "./assets/favicon.png",
   },
   scheme: "board-game-assistant",
   plugins: [

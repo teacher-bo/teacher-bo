@@ -52,7 +52,6 @@ export const useStreamingAudioService = (): UseAudioServiceReturn => {
   } = useSocket({
     socketUrl: process.env.EXPO_PUBLIC_API_URL!,
     onTranscriptionResult: (data) => {
-      console.log(data);
       setSttDatas((prev) => {
         const exists = prev.find((d) => d.resultId === data.resultId);
         if (exists) {
@@ -151,14 +150,14 @@ export const useStreamingAudioService = (): UseAudioServiceReturn => {
       setIsRecordingState(true);
 
       console.log("Recording started with Socket.IO streaming", {
-        socketId: socketId,
+        socketId,
         sampleRate: 16000,
       });
     } catch (error) {
       console.error("Failed to start recording:", error);
       throw error;
     }
-  }, [setupAudioDataHandler, connectSocket]);
+  }, [setupAudioDataHandler, socketId]);
 
   // 녹음 중지
   const stopRecording = useCallback(async () => {
@@ -170,17 +169,17 @@ export const useStreamingAudioService = (): UseAudioServiceReturn => {
       webAudioChunksRef.current = new Float32Array(0);
       setAudioLevel(0);
 
-      console.log("Recording stopped and Socket.IO disconnected");
+      console.log("Recording stopped");
     } catch (error) {
       console.error("Failed to stop recording:", error);
       throw error;
     }
-  }, [disconnectSocket]);
+  }, []);
 
   useEffect(() => {
     connectSocket();
     return () => {
-      stopRecordingNative();
+      stopRecordingNative().catch(console.error);
       disconnectSocket();
       audioChunksRef.current = [];
       webAudioChunksRef.current = new Float32Array(0);

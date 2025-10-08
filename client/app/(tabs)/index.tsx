@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -8,25 +8,29 @@ import {
   ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import * as Speech from "expo-speech";
 import { ThemedText } from "@/components/ThemedText";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useStreamingAudioService } from "../../hooks/useStreamingAudioService";
+import { useOpenAI } from "../../hooks/useOpenAI";
+import { usePollyTTS } from "../../hooks/usePollyTTS";
+import { useWakeWord } from "../../hooks/useWakeWord";
 
 interface Message {
   id: string;
-  text: string;
   isUser: boolean;
+  textItems: { resultId: string; text: string }[];
   timestamp: Date;
   source?: string;
 }
 
 export default function HomeScreen() {
-  const [isSpeaking, setIsSpeaking] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [realtimeText, setRealtimeText] = useState<string>("");
+  const [chatSessionId] = useState<string>(
+    () => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  );
 
-  // useStreamingAudioService Hook 사용
+  const currentlyAddingMessageRef = useRef(false);
+
   const {
     isRecording,
     startRecording: startAudioRecording,
@@ -37,68 +41,108 @@ export default function HomeScreen() {
     sttDatas,
   } = useStreamingAudioService();
 
+  const { chatWithAI, loading: aiLoading, error: aiError } = useOpenAI();
+
+  const {
+    speakText,
+    isPlaying: isSpeaking,
+    isLoading: ttsLoading,
+    error: ttsError,
+  } = usePollyTTS();
+
+  const [toggleRecordingFlag, setToggleRecordingFlag] = useState(false);
+  const {
+    isListening: isWakeWordListening,
+    isSupported: isWakeWordSupported,
+    startListening: startWakeWordListening,
+    stopListening: stopWakeWordListening,
+    error: wakeWordError,
+  } = useWakeWord(
+    () => {
+      // "보쌤" 감지 시 녹음 시작
+      if (!isRecording && !isSpeaking && !aiLoading && !ttsLoading) {
+        console.log("Wake word detected! Starting recording...");
+        setToggleRecordingFlag((p) => !p);
+      }
+    },
+    {
+      wakeWords: ["보쌤", "보셈"],
+      language: "ko-KR",
+      sensitivity: 0.6,
+      continuous: true,
+    }
+  );
+  useEffect(() => {
+    if (toggleRecordingFlag) {
+      startRecording();
+    }
+  }, [toggleRecordingFlag]);
+
+  // 컴포넌트 마운트 시 웨이크워드 리스닝 시작
+  useEffect(() => {
+    if (isWakeWordSupported) {
+      startWakeWordListening();
+      console.log("Wake word listening started");
+    } else {
+      console.warn("Wake word detection not supported on this platform");
+    }
+
+    return () => {
+      stopWakeWordListening();
+      console.log("Wake word listening stopped");
+    };
+  }, [isWakeWordSupported, startWakeWordListening, stopWakeWordListening]);
+
   useEffect(() => {
     if (sttDatas.length === 0) return;
     setMessages((prev) => {
       const latestData = sttDatas[sttDatas.length - 1];
-      const exists = prev.find((msg) => msg.id === latestData.resultId);
-      if (exists) {
-        // 기존 메시지 업데이트
-        return prev.map((msg) =>
-          msg.id === latestData.resultId
-            ? { ...msg, text: latestData.text }
-            : msg
+
+      if (currentlyAddingMessageRef.current) {
+        const message = prev[prev.length - 1];
+        const exists = message.textItems.find(
+          (item) => item.resultId === latestData.resultId
         );
-      } else {
-        // 새로운 메시지 추가
-        const newMessage: Message = {
-          id: latestData.resultId,
-          text: latestData.text,
-          isUser: true,
-          timestamp: new Date(latestData.timestamp),
-        };
-        // 사용자가 마지막으로 보낸 메시지 이후에만 봇 응답 추가
-        const lastUserMessageIndex = [...prev]
-          .reverse()
-          .findIndex((msg) => msg.isUser);
-        if (
-          lastUserMessageIndex === -1 ||
-          prev.length - 1 - lastUserMessageIndex === prev.length - 1
-        ) {
-          // 마지막 메시지가 사용자 메시지이거나, 사용자가 메시지를 보낸 적이 없는 경우에만 추가
-          return [...prev, newMessage];
+
+        let textItems: Message["textItems"];
+        if (exists) {
+          textItems = message.textItems.map((item) =>
+            item.resultId === latestData.resultId
+              ? { ...item, text: latestData.text }
+              : item
+          );
         } else {
-          return prev;
+          textItems = [
+            ...message.textItems,
+            { resultId: latestData.resultId, text: latestData.text },
+          ];
         }
+
+        return prev.map((m) => (m.id === message.id ? { ...m, textItems } : m));
       }
+
+      currentlyAddingMessageRef.current = true;
+
+      const newMessage: Message = {
+        id: latestData.resultId,
+        textItems: [{ resultId: latestData.resultId, text: latestData.text }],
+        isUser: true,
+        timestamp: new Date(latestData.timestamp),
+      };
+
+      return [...prev, newMessage];
     });
   }, [sttDatas]);
 
-  const generateBotResponse = (userText: string): string => {
-    const responses = [
-      `"${userText}"에 대해 알려드리겠습니다.`,
-      "흥미로운 질문이네요! 보드게임 규칙을 확인해보겠습니다.",
-      "네, 그 게임에 대해 설명해드릴 수 있습니다.",
-      "좋은 질문입니다. 관련 정보를 찾아보겠습니다.",
-      "보드게임 전문가로서 답변드리겠습니다.",
-    ];
-    return responses[Math.floor(Math.random() * responses.length)];
-  };
-
-  const addMessage = (text: string, isUser: boolean) => {
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      text,
-      isUser,
-      timestamp: new Date(),
-    };
-    setMessages((prev) => [...prev, newMessage]);
-  };
-
   const startRecording = async () => {
     try {
+      // 중복 실행 방지
+      if (isRecording || isSpeaking || aiLoading || ttsLoading) {
+        console.log("Recording already in progress or system busy");
+        return;
+      }
+
       await startAudioRecording();
-      speakText("듣는 중입니다. 말씀해주세요.");
     } catch (err) {
       console.error("Failed to start recording", err);
       Alert.alert("오류", "음성 녹음을 시작할 수 없습니다.");
@@ -107,24 +151,81 @@ export default function HomeScreen() {
 
   const stopRecording = async () => {
     try {
+      // 중복 실행 방지
+      if (!isRecording) {
+        console.log("Not currently recording");
+        return;
+      }
+
       await stopAudioRecording();
+      currentlyAddingMessageRef.current = false;
+
+      // 현재 사용자 메시지에서 텍스트 추출
+      const lastMessage = messages[messages.length - 1];
+      if (
+        lastMessage &&
+        lastMessage.isUser &&
+        lastMessage.textItems.length > 0
+      ) {
+        const userText = lastMessage.textItems
+          .map((item) => item.text)
+          .join(" ")
+          .trim();
+
+        if (userText) {
+          // OpenAI API 호출하여 응답 받기
+          console.log("Sending to OpenAI:", userText);
+
+          const aiResponse = await chatWithAI({
+            message: userText,
+            sessionId: chatSessionId,
+            context: messages
+              .slice(-4)
+              .map((msg) => msg.textItems.map((item) => item.text).join(" "))
+              .filter(Boolean), // 최근 4개 메시지를 컨텍스트로 사용
+          });
+
+          if (aiResponse) {
+            // AI 응답을 메시지로 추가
+            const botMessage: Message = {
+              id: `bot_${Date.now()}_${Math.random()
+                .toString(36)
+                .substr(2, 9)}`,
+              isUser: false,
+              textItems: [
+                { resultId: `ai_${Date.now()}`, text: aiResponse.message },
+              ],
+              timestamp: new Date(),
+              source: "OpenAI GPT-4",
+            };
+
+            setMessages((prev) => [...prev, botMessage]);
+
+            // AI 응답을 음성으로 재생
+            setTimeout(() => {
+              speakText(aiResponse.message);
+            }, 500);
+          }
+        }
+      }
+
+      if (aiError) {
+        console.error("OpenAI API Error:", aiError);
+        Alert.alert("AI 오류", aiError);
+      }
+
+      if (ttsError) {
+        console.error("TTS Error:", ttsError);
+        Alert.alert("음성 합성 오류", ttsError);
+      }
+
+      if (wakeWordError) {
+        console.error("Wake Word Error:", wakeWordError);
+        // 웨이크워드 오류는 사용자에게 알리지 않고 콘솔에만 로그
+      }
     } catch (err) {
       console.error("Failed to stop recording", err);
       Alert.alert("오류", "음성 처리 중 오류가 발생했습니다.");
-    }
-  };
-
-  const speakText = async (text: string) => {
-    try {
-      setIsSpeaking(true);
-      Speech.speak(text, {
-        language: "ko-KR",
-        onDone: () => setIsSpeaking(false),
-        onError: () => setIsSpeaking(false),
-      });
-    } catch (error) {
-      console.error("TTS Error:", error);
-      setIsSpeaking(false);
     }
   };
 
@@ -150,7 +251,6 @@ export default function HomeScreen() {
         style={styles.messagesContainer}
         showsVerticalScrollIndicator={false}
       >
-        {/* {<RnApiAudioRecorder />} */}
         {messages.length === 0 ? (
           <View style={styles.emptyContainer}>
             <View style={styles.micContainer}>
@@ -161,28 +261,29 @@ export default function HomeScreen() {
                 ]}
                 onPress={toggleRecording}
               >
-                {
-                  <Ionicons
-                    name={isRecording ? "stop" : "mic"}
-                    size={32}
-                    color="white"
-                  />
-                }
+                <Ionicons
+                  name={isRecording ? "stop" : "mic"}
+                  size={32}
+                  color="white"
+                />
               </TouchableOpacity>
 
-              <Text style={styles.micStatusText}>
-                {isRecording
-                  ? "듣는 중..."
-                  : isSpeaking
-                  ? "음성 재생 중..."
-                  : ""}
-              </Text>
-
-              {/* 실시간 STT 결과 표시 */}
-              {realtimeText && (
-                <View style={styles.realtimeTextContainer}>
-                  <Text style={styles.realtimeText}>{realtimeText}</Text>
-                </View>
+              {(isRecording ||
+                aiLoading ||
+                ttsLoading ||
+                isSpeaking ||
+                isWakeWordListening) && (
+                <Text style={styles.micStatusText}>
+                  {isRecording
+                    ? "듣는 중..."
+                    : aiLoading
+                    ? "AI 처리 중..."
+                    : ttsLoading
+                    ? "음성 합성 중..."
+                    : isSpeaking
+                    ? "음성 재생 중..."
+                    : ""}
+                </Text>
               )}
 
               {/* 오디오 레벨 표시 */}
@@ -215,7 +316,11 @@ export default function HomeScreen() {
               "보쌤"을 불러보세요!
             </ThemedText>
             <ThemedText style={styles.emptySubText}>
-              보드게임 규칙, 전략, 추천 등 무엇이든 물어보세요!
+              {`보드게임 규칙, 전략, 추천 등 무엇이든 물어보세요!${
+                isWakeWordSupported
+                  ? '\n음성으로 "보쌤"을 불러서 시작할 수도 있어요!'
+                  : ""
+              }`}
             </ThemedText>
           </View>
         ) : (
@@ -236,7 +341,7 @@ export default function HomeScreen() {
                       : styles.botMessageText,
                   ]}
                 >
-                  {message.text}
+                  {message.textItems.map((item) => item.text).join(" ")}
                 </Text>
                 {!message.isUser && message.source && (
                   <TouchableOpacity
@@ -256,32 +361,36 @@ export default function HomeScreen() {
               </View>
             ))}
 
+            {/* AI 로딩 상태 표시 */}
+            {(aiLoading || ttsLoading) && (
+              <View style={styles.loadingContainer}>
+                <Ionicons name="ellipsis-horizontal" size={24} color="#888" />
+                <Text style={styles.loadingText}>
+                  {aiLoading
+                    ? "AI가 답변을 생성하고 있습니다..."
+                    : "음성을 합성하고 있습니다..."}
+                </Text>
+              </View>
+            )}
+
             {/* 하단 녹음 버튼 */}
             <View style={styles.recordingButtonContainer}>
               <TouchableOpacity
                 style={[
                   styles.micButton,
                   isRecording && styles.micButtonRecording,
-                  isSpeaking && styles.micButtonDisabled,
+                  (isSpeaking || aiLoading || ttsLoading) &&
+                    styles.micButtonDisabled,
                 ]}
                 onPress={toggleRecording}
-                disabled={isSpeaking}
+                disabled={isSpeaking || aiLoading || ttsLoading}
               >
-                {
-                  <Ionicons
-                    name={isRecording ? "stop" : "mic"}
-                    size={32}
-                    color="white"
-                  />
-                }
+                <Ionicons
+                  name={isRecording ? "stop" : "mic"}
+                  size={32}
+                  color="white"
+                />
               </TouchableOpacity>
-
-              {/* 실시간 STT 결과 표시 */}
-              {realtimeText && (
-                <View style={styles.realtimeTextContainer}>
-                  <Text style={styles.realtimeText}>{realtimeText}</Text>
-                </View>
-              )}
             </View>
           </>
         )}
@@ -408,20 +517,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 20,
   },
-  realtimeTextContainer: {
-    marginTop: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: "rgba(0, 122, 255, 0.1)",
-    borderRadius: 8,
-    maxWidth: "90%",
-  },
-  realtimeText: {
-    color: "#007AFF",
-    fontSize: 14,
-    textAlign: "center",
-    fontStyle: "italic",
-  },
   audioLevelContainer: {
     marginTop: 12,
     alignItems: "center",
@@ -453,5 +548,23 @@ const styles = StyleSheet.create({
     fontSize: 10,
     textAlign: "center",
     marginVertical: 1,
+  },
+  wakeWordIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    backgroundColor: "rgba(0, 122, 255, 0.1)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(0, 122, 255, 0.3)",
+  },
+  wakeWordText: {
+    color: "#007AFF",
+    fontSize: 12,
+    marginLeft: 4,
+    fontWeight: "500",
   },
 });

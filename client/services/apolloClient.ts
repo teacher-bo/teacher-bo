@@ -9,17 +9,19 @@ import { getMainDefinition } from "@apollo/client/utilities";
 import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
 import { createClient } from "graphql-ws";
 
-const SERVER_URL = "http://localhost:1002";
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:1002";
 
 // HTTP Link
 const httpLink = createHttpLink({
-  uri: `${SERVER_URL}/api/graphql`,
+  uri: __DEV__ ? "/api/graphql" : `${BASE_URL}/api/graphql`,
 });
 
 // WebSocket Link for subscriptions
 const wsLink = new GraphQLWsLink(
   createClient({
-    url: `ws://localhost:1002/api/graphql`,
+    url: __DEV__
+      ? "ws://localhost:1001/graphql" // Metro 서버를 통한 프록시
+      : `${BASE_URL.replace("http", "ws")}/api/graphql`, // 프로덕션
     shouldRetry: () => true,
   })
 );
@@ -117,6 +119,84 @@ export const TRANSCRIPTION_UPDATED = gql`
       text
       isFinal
       timestamp
+    }
+  }
+`;
+
+// OpenAI Mutations and Queries
+export const CHAT_WITH_AI = gql`
+  mutation ChatWithAI($input: ChatInput!) {
+    chat(input: $input) {
+      message
+      sessionId
+      timestamp
+    }
+  }
+`;
+
+export const SEARCH_FILES = gql`
+  mutation SearchFiles($input: FileSearchInput!) {
+    searchFiles(input: $input) {
+      answer
+      query
+      sources
+      timestamp
+    }
+  }
+`;
+
+export const CREATE_CHAT_SESSION = gql`
+  mutation CreateChatSession($sessionId: String!) {
+    createChatSession(sessionId: $sessionId) {
+      id
+      sessionId
+      createdAt
+      updatedAt
+      messages {
+        id
+        role
+        content
+        timestamp
+      }
+    }
+  }
+`;
+
+export const GET_CHAT_SESSION = gql`
+  query GetChatSession($sessionId: String!) {
+    getChatSession(sessionId: $sessionId) {
+      id
+      sessionId
+      createdAt
+      updatedAt
+      messages {
+        id
+        role
+        content
+        timestamp
+      }
+    }
+  }
+`;
+
+// Polly TTS Mutations and Queries
+export const SYNTHESIZE_SPEECH = gql`
+  mutation SynthesizeSpeech($input: SynthesizeSpeechInput!) {
+    synthesizeSpeech(input: $input) {
+      audioBase64
+      contentType
+      audioSize
+    }
+  }
+`;
+
+export const GET_AVAILABLE_KOREAN_VOICES = gql`
+  query GetAvailableKoreanVoices {
+    getAvailableKoreanVoices {
+      id
+      name
+      gender
+      engine
     }
   }
 `;

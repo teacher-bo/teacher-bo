@@ -11,6 +11,8 @@ import { UsersModule } from './users/users.module';
 import { GamesModule } from './games/games.module';
 import { SessionsModule } from './sessions/sessions.module';
 import { TranscribeModule } from './transcribe/transcribe.module';
+import { OpenAIModule } from './openai/openai.module';
+import { PollyModule } from './polly/polly.module';
 
 @Module({
   imports: [
@@ -44,6 +46,8 @@ import { TranscribeModule } from './transcribe/transcribe.module';
     GamesModule,
     SessionsModule,
     TranscribeModule,
+    OpenAIModule,
+    PollyModule,
   ],
 })
 export class AppModule {}

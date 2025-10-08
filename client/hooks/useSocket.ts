@@ -36,10 +36,24 @@ export const useSocket = ({
       return;
     }
 
+    // 기존 연결이 있다면 먼저 정리
+    if (socketRef.current) {
+      socketRef.current.removeAllListeners();
+      socketRef.current.disconnect();
+    }
+
     console.log(`🔌 Connecting to Socket.IO: ${socketUrl}`);
 
     socketRef.current = io(socketUrl, {
-      transports: ["websocket"],
+      transports: ["websocket", "polling"], // Add polling fallback for web
+      forceNew: true,
+      timeout: 20000, // Increase timeout
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      // Web-specific optimizations
+      upgrade: true,
+      rememberUpgrade: false,
     });
 
     const socket = socketRef.current;
