@@ -145,7 +145,7 @@ export default function HomeScreen() {
       await startAudioRecording();
     } catch (err) {
       console.error("Failed to start recording", err);
-      Alert.alert("오류", "음성 녹음을 시작할 수 없습니다.");
+      // Alert.alert("오류", "음성 녹음을 시작할 수 없습니다.");
     }
   };
 

@@ -1,8 +1,10 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Platform } from "react-native";
 
+import V from "@react-native-voice/voice";
+
 // React Native Voice는 네이티브 플랫폼에서만 사용
-let Voice: any = null;
+let Voice: typeof V | null = null;
 if (Platform.OS !== "web") {
   try {
     Voice = require("@react-native-voice/voice").default;
@@ -153,6 +155,7 @@ export const useWakeWord = (
 
       Voice.onSpeechResults = (event: any) => {
         const results = event.value;
+        console.log(results);
         if (results && results.length > 0) {
           const transcript = results[0];
           console.log("Voice: Speech result:", transcript);
@@ -162,17 +165,23 @@ export const useWakeWord = (
 
       Voice.onSpeechPartialResults = (event: any) => {
         const results = event.value;
+        console.log(results);
         if (results && results.length > 0) {
           const transcript = results[0];
           checkForWakeWords(transcript);
         }
       };
 
+      Voice.onSpeechVolumeChanged = (event: any) => {
+        // 볼륨 변화 이벤트 (필요시 활용)
+        // console.log("Voice: Volume changed", event.value);
+      };
+
       return () => {
         Voice.destroy().then(Voice.removeAllListeners);
       };
     }
-  }, [checkForWakeWords]);
+  }, []);
 
   // Web Speech Recognition 설정
   useEffect(() => {

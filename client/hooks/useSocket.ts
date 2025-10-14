@@ -14,6 +14,8 @@ interface UseSocketReturn {
   socket: Socket | null;
   isConnected: boolean;
   sendAudioChunk: (audioData: string, soundLevel: number) => void;
+  startTranscriptionStream: () => void;
+  stopTranscriptionStream: () => void;
   connect: () => void;
   disconnect: () => void;
 }
@@ -62,9 +64,6 @@ export const useSocket = ({
       console.log("🟢 Socket.IO connected:", socket.id);
       isConnectedRef.current = true;
 
-      // 세션 시작 이벤트 전송
-      socket.emit("startTranscriptionStream");
-
       onConnect?.(socket);
     });
 
@@ -100,11 +99,30 @@ export const useSocket = ({
   // Socket.IO 연결 해제
   const disconnect = useCallback(() => {
     if (socketRef.current) {
-      socketRef.current.emit("stopTranscriptionStream");
       socketRef.current.disconnect();
       socketRef.current = null;
       isConnectedRef.current = false;
       console.log("🔌 Socket.IO connection closed");
+    }
+  }, []);
+
+  // Transcription stream 시작
+  const startTranscriptionStream = useCallback(() => {
+    if (socketRef.current && socketRef.current.connected) {
+      console.log("🎙️ Starting transcription stream");
+      socketRef.current.emit("startTranscriptionStream");
+    } else {
+      console.warn("Socket not connected, cannot start transcription stream");
+    }
+  }, []);
+
+  // Transcription stream 중지
+  const stopTranscriptionStream = useCallback(() => {
+    if (socketRef.current && socketRef.current.connected) {
+      console.log("🛑 Stopping transcription stream");
+      socketRef.current.emit("stopTranscriptionStream");
+    } else {
+      console.warn("Socket not connected, cannot stop transcription stream");
     }
   }, []);
 
@@ -139,6 +157,8 @@ export const useSocket = ({
     socket: socketRef.current,
     isConnected: isConnectedRef.current,
     sendAudioChunk,
+    startTranscriptionStream,
+    stopTranscriptionStream,
     connect,
     disconnect,
   };

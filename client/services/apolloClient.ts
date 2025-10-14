@@ -9,11 +9,11 @@ import { getMainDefinition } from "@apollo/client/utilities";
 import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
 import { createClient } from "graphql-ws";
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:1002";
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || "";
 
 // HTTP Link
 const httpLink = createHttpLink({
-  uri: __DEV__ ? "/api/graphql" : `${BASE_URL}/api/graphql`,
+  uri: `${process.env.EXPO_PUBLIC_URL}/api/graphql`,
 });
 
 // WebSocket Link for subscriptions

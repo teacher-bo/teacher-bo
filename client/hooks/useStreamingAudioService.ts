@@ -47,6 +47,8 @@ export const useStreamingAudioService = (): UseAudioServiceReturn => {
 
   const {
     sendAudioChunk: sendAudioChunkViaSocket,
+    startTranscriptionStream,
+    stopTranscriptionStream,
     connect: connectSocket,
     disconnect: disconnectSocket,
   } = useSocket({
@@ -126,6 +128,7 @@ export const useStreamingAudioService = (): UseAudioServiceReturn => {
 
   // 녹음 시작
   const startRecording = useCallback(async () => {
+    console.log("🎬 Starting recording...");
     try {
       const { granted } = await ExpoAudioStreamModule.requestPermissionsAsync();
       if (!granted) {
@@ -149,6 +152,9 @@ export const useStreamingAudioService = (): UseAudioServiceReturn => {
       setBufferSize(1024);
       setIsRecordingState(true);
 
+      // 녹음 시작과 함께 transcription stream 시작
+      startTranscriptionStream();
+
       console.log("Recording started with Socket.IO streaming", {
         socketId,
         sampleRate: 16000,
@@ -157,11 +163,14 @@ export const useStreamingAudioService = (): UseAudioServiceReturn => {
       console.error("Failed to start recording:", error);
       throw error;
     }
-  }, [setupAudioDataHandler, socketId]);
+  }, [setupAudioDataHandler, socketId, startTranscriptionStream]);
 
   // 녹음 중지
   const stopRecording = useCallback(async () => {
     try {
+      // transcription stream 먼저 중지
+      stopTranscriptionStream();
+
       await stopRecordingNative();
       setIsRecordingState(false);
 
@@ -174,7 +183,7 @@ export const useStreamingAudioService = (): UseAudioServiceReturn => {
       console.error("Failed to stop recording:", error);
       throw error;
     }
-  }, []);
+  }, [stopTranscriptionStream]);
 
   useEffect(() => {
     connectSocket();
