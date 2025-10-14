@@ -131,7 +131,7 @@ const config: ExpoConfig = {
       origin: false,
     },
     eas: {
-      projectId: "board-game-assistant",
+      projectId: "ad9844e2-900c-4aa1-aa57-873f3079d2ae",
     },
   },
 };
