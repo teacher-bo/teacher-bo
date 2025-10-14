@@ -7,25 +7,27 @@ import packageJson from "./package.json";
 
 dotenvConfig();
 
+const PACKAGE_NAME = "at.leed.teacher-bo";
+const buildVersion = packageJson.version;
+const buildNumber = `000${buildVersion.replace(/\./g, "")}`;
+
 const config: ExpoConfig = {
-  name: "Board Game Assistant",
-  slug: "board-game-assistant",
-  version: packageJson.version,
+  scheme: PACKAGE_NAME,
+  name: "TeacherBo",
+  slug: "teacher-bo",
+  version: buildVersion,
+  platforms: ["ios", "web"],
   orientation: "portrait",
-  icon: "./assets/icon.png",
+  icon: "./assets/icons/ios-light.png",
   userInterfaceStyle: "automatic",
   newArchEnabled: true,
   primaryColor: "#0a7ea4",
-  splash: {
-    image: "./assets/splash-icon.png",
-    resizeMode: "contain",
-    backgroundColor: "#ffffff",
-  },
   assetBundlePatterns: ["**/*"],
   ios: {
+    icon: "./assets/icons/ios-light.png",
     supportsTablet: true,
-    bundleIdentifier: "com.dongzoolee.boardgameassistant",
-    buildNumber: "1",
+    bundleIdentifier: PACKAGE_NAME,
+    buildNumber,
     infoPlist: {
       UIBackgroundModes: [
         "background-fetch",
@@ -45,7 +47,7 @@ const config: ExpoConfig = {
     },
   },
   android: {
-    package: "com.dongzoolee.boardgameassistant",
+    package: PACKAGE_NAME,
     versionCode: 1,
     adaptiveIcon: {
       foregroundImage: "./assets/adaptive-icon.png",
@@ -70,9 +72,8 @@ const config: ExpoConfig = {
   web: {
     bundler: "metro",
     output: "static",
-    favicon: "./assets/favicon.png",
+    favicon: "./assets/icons/favicon.png",
   },
-  scheme: "board-game-assistant",
   plugins: [
     "@siteed/expo-audio-studio",
     [
@@ -122,6 +123,15 @@ const config: ExpoConfig = {
     ],
     "expo-notifications",
     "expo-font",
+    [
+      "expo-splash-screen",
+      {
+        image: "./assets/icons/splash-icon-light.png",
+        imageWidth: 200,
+        resizeMode: "contain",
+        backgroundColor: "#FFFFFF",
+      },
+    ],
   ],
   experiments: {
     typedRoutes: true,
