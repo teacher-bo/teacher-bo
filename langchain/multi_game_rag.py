@@ -1,14 +1,14 @@
-import json
-import os
+import os, json, time, hashlib
+from typing import List, Dict, Optional, Tuple
 from dotenv import load_dotenv
+import redis
+
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_redis import RedisVectorStore
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-import redis
-from typing import List, Dict, Optional
 
 # 환경 변수 로드
 load_dotenv(dotenv_path="../.env")
@@ -16,424 +16,261 @@ load_dotenv(dotenv_path="../.env")
 class MultiGameRAGSystem:
     def __init__(
         self,
-        redis_url="redis://localhost:6379",
-        base_index_name="game_rag",
-        llm_provider=None,
+        redis_url: str = None,
+        base_index_name: str = "game_rag",
+        llm_provider: Optional[str] = None,
     ):
-        """
-        다중 게임 RAG 시스템 초기화
-
-        Args:
-            redis_url: Redis 서버 URL
-            base_index_name: 기본 인덱스 이름 (게임별로 확장됨)
-            llm_provider: LLM 제공자 ('openai' 또는 'gemini')
-        """
-        self.redis_url = os.getenv("REDIS_URL", redis_url)
+        self.redis_url = os.getenv("REDIS_URL", redis_url or "redis://localhost:6379")
         self.base_index_name = base_index_name
-        self.llm_provider = llm_provider or os.getenv("LLM_PROVIDER", "gemini").lower()
-        
+        self.llm_provider = (llm_provider or os.getenv("LLM_PROVIDER", "openai")).lower()
+
         # 게임별 설정
         self.games_config = {
             "sabotage": {
                 "name": "사보타지",
                 "rulebook_path": "./rag_documents/sabotage_rulebook.json",
-                "description": "블러핑과 추리가 결합된 보드게임"
+                "description": "광부 vs 방해꾼 정체 숨김 팀게임",
             },
-            "rummikub": {
-                "name": "루미큐브",
-                "rulebook_path": "./rag_documents/rummikub_rulebook_gameonly.json",
-                "description": "숫자 타일을 조합하는 전략 게임"
-            }
-            # 추후 게임 추가 시 여기에 추가
+            # 필요 시 계속 추가 가능
         }
-        
-        # 현재 선택된 게임 (기본값: sabotage)
         self.current_game = "sabotage"
-        
-        # LLM 및 임베딩 모델 초기화
-        self._initialize_models()
-        
-        # 텍스트 분할기 초기화
-        self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=200,
-            length_function=len,
-        )
-        
-        # Redis 연결 테스트
-        self._test_redis_connection()
-        
-        # 게임별 벡터 스토어 딕셔너리
-        self.vectorstores = {}
-        
-    def _initialize_models(self):
-        """LLM 및 임베딩 모델 초기화"""
-        if self.llm_provider == "gemini":
-            print("🤖 Gemini 2.0 Flash 모델을 사용합니다.")
-            self.llm = ChatGoogleGenerativeAI(
-                model="gemini-2.0-flash-exp",
-                temperature=0.7,
-                google_api_key=os.getenv("GOOGLE_API_KEY"),
-            )
-            self.embeddings = GoogleGenerativeAIEmbeddings(
-                model="models/text-embedding-004",
-                google_api_key=os.getenv("GOOGLE_API_KEY"),
-            )
-        elif self.llm_provider == "openai":
-            print("🤖 OpenAI GPT 모델을 사용합니다.")
-            self.llm = ChatOpenAI(temperature=0.7, model="gpt-4o")
-            self.embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-        else:
-            raise ValueError(f"지원하지 않는 LLM 제공자: {self.llm_provider}")
 
-    def _test_redis_connection(self):
-        """Redis 연결 테스트"""
+        self._initialize_models()
+        self.text_splitter = RecursiveCharacterTextSplitter(chunk_size=900, chunk_overlap=120)
+        self.vectorstores: Dict[str, RedisVectorStore] = {}
+        self.active_index_names: Dict[str, str] = {}
+        self.conversation_history: List[Tuple[str, str]] = []
+
+        self._test_redis()
+
+    def _initialize_models(self):
+        if self.llm_provider == "openai":
+            self.llm = ChatOpenAI(model="gpt-5", temperature=0.25)
+            self.embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+        elif self.llm_provider == "gemini":
+            self.llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp", temperature=0.2)
+            self.embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
+        else:
+            raise ValueError(f"지원하지 않는 LLM_PROVIDER: {self.llm_provider}")
+
+    def _test_redis(self):
         try:
-            r = redis.from_url(self.redis_url)
-            r.ping()
+            redis.from_url(self.redis_url).ping()
             print("✅ Redis 연결 성공!")
         except Exception as e:
-            print(f"❌ Redis 연결 실패: {e}")
-            raise
+            raise RuntimeError(f"Redis 연결 실패: {e}")
 
-    def _get_game_index_name(self, game_id: str) -> str:
-        """게임별 인덱스 이름 생성"""
-        provider_suffix = "_openai" if self.llm_provider == "openai" else "_gemini"
-        return f"{self.base_index_name}_{game_id}{provider_suffix}"
+    def _get_base_index_name(self, game_id: str) -> str:
+        suffix = "_openai" if self.llm_provider == "openai" else "_gemini"
+        return f"{self.base_index_name}_{game_id}{suffix}"
 
-    def get_available_games(self) -> Dict[str, Dict]:
-        """사용 가능한 게임 목록 반환"""
-        return self.games_config
-
-    def switch_game(self, game_id: str):
-        """게임 전환"""
-        if game_id not in self.games_config:
-            raise ValueError(f"지원하지 않는 게임: {game_id}")
-        
-        self.current_game = game_id
-        print(f"🎮 게임이 '{self.games_config[game_id]['name']}'로 전환되었습니다.")
-
-    def initialize_game_vectorstore(self, game_id: str):
-        """특정 게임의 벡터 스토어 초기화"""
-        if game_id not in self.games_config:
-            raise ValueError(f"지원하지 않는 게임: {game_id}")
-        
-        game_config = self.games_config[game_id]
-        index_name = self._get_game_index_name(game_id)
-        
+    def _checksum(self, path: str) -> Optional[str]:
         try:
-            # 기존 인덱스 확인
-            try:
-                vectorstore = RedisVectorStore.from_existing_index(
-                    embedding=self.embeddings,
-                    index_name=index_name,
-                    redis_url=self.redis_url,
-                )
-                vectorstore.similarity_search("테스트", k=1)
-                self.vectorstores[game_id] = vectorstore
-                print(f"✅ '{game_config['name']}' 기존 벡터 스토어 연결 완료")
-                return
-            except Exception:
-                pass
-            
-            # 새 벡터 스토어 생성
-            print(f"🔄 '{game_config['name']}' 새 벡터 스토어 생성 중...")
-            
-            # 기존 인덱스 삭제
-            r = redis.from_url(self.redis_url)
-            try:
-                r.delete(index_name)
-            except Exception:
-                pass
-            
-            # 룰북 문서 로드
-            documents = self._load_game_documents(game_id)
-            
-            if documents:
-                # 문서를 청크로 분할
-                texts = self.text_splitter.split_documents(documents)
-                print(f"📄 {len(documents)}개 문서를 {len(texts)}개 청크로 분할")
-                
-                # 벡터 스토어 생성
-                vectorstore = RedisVectorStore.from_documents(
-                    texts,
-                    self.embeddings,
-                    index_name=index_name,
-                    redis_url=self.redis_url,
-                )
-                self.vectorstores[game_id] = vectorstore
-                print(f"✅ '{game_config['name']}' 벡터 스토어 생성 완료 ({len(texts)}개 청크)")
-            else:
-                # 빈 벡터 스토어 생성
-                vectorstore = RedisVectorStore.from_texts(
-                    texts=["초기화 샘플"],
-                    embedding=self.embeddings,
-                    index_name=index_name,
-                    redis_url=self.redis_url,
-                )
-                self.vectorstores[game_id] = vectorstore
-                print(f"⚠️ '{game_config['name']}' 룰북을 찾을 수 없어 빈 벡터 스토어 생성")
-                
-        except Exception as e:
-            print(f"❌ '{game_config['name']}' 벡터 스토어 초기화 실패: {e}")
-            raise
+            with open(path, "rb") as f:
+                return hashlib.sha256(f.read()).hexdigest()
+        except Exception:
+            return None
 
     def _load_game_documents(self, game_id: str) -> List[Document]:
-        """게임 룰북 문서 로드"""
-        game_config = self.games_config[game_id]
-        rulebook_path = game_config["rulebook_path"]
-        
-        documents = []
-        
-        if os.path.exists(rulebook_path):
-            try:
-                with open(rulebook_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    
-                for item in data:
-                    content = item.get("content", "")
-                    if content.strip():
-                        metadata = {
-                            "game": game_id,
-                            "game_name": game_config["name"],
-                            **{k: v for k, v in item.items() if k != "content"}
-                        }
-                        documents.append(Document(page_content=content, metadata=metadata))
-                
-                print(f"📖 '{game_config['name']}' 룰북에서 {len(documents)}개 문서 로드")
-            except Exception as e:
-                print(f"❌ '{game_config['name']}' 룰북 로드 실패: {e}")
-        else:
-            print(f"⚠️ '{game_config['name']}' 룰북 파일을 찾을 수 없음: {rulebook_path}")
-            
-        return documents
+        cfg = self.games_config[game_id]
+        path = cfg["rulebook_path"]
+        docs: List[Document] = []
+        total = loaded = dropped = 0
 
-    def get_current_vectorstore(self):
-        """현재 게임의 벡터 스토어 반환"""
-        if self.current_game not in self.vectorstores:
-            self.initialize_game_vectorstore(self.current_game)
-        return self.vectorstores[self.current_game]
+        if not os.path.exists(path):
+            print(f"⚠️ 파일 없음: {path}")
+            return docs
 
-    def search_documents(self, query: str, k: int = 5, game_id: Optional[str] = None):
-        """문서 검색 (특정 게임 또는 현재 게임)"""
-        target_game = game_id or self.current_game
-        
-        if target_game not in self.vectorstores:
-            self.initialize_game_vectorstore(target_game)
-        
         try:
-            results = self.vectorstores[target_game].similarity_search_with_score(query, k=k)
-            game_name = self.games_config[target_game]["name"]
-            print(f"🔍 '{game_name}'에서 '{query}' 검색: {len(results)}개 문서 발견")
-            return results
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            for item in data:
+                total += 1
+                content = item.get("content", "")
+                if not isinstance(content, str) or not content.strip():
+                    dropped += 1
+                    print(f"⚠️ content 누락/빈값 → 스킵 (source={item.get('source')}, category={item.get('category')})")
+                    continue
+                metadata = {
+                    "game": game_id,
+                    "game_name": cfg["name"],
+                    **{k: v for k, v in item.items() if k != "content"},
+                }
+                docs.append(Document(page_content=content.strip(), metadata=metadata))
+                loaded += 1
+            print(f"📖 '{cfg['name']}' 로드 요약: 총 {total} / 적재 {loaded} / 스킵 {dropped}")
+            return docs
         except Exception as e:
-            print(f"❌ 문서 검색 실패: {e}")
-            return []
+            print(f"❌ 룰북 로드 실패: {e}")
+            return docs
 
-    def generate_answer(self, question: str, k: int = 5, game_id: Optional[str] = None):
-        """게임 규칙 질문 답변 생성"""
-        target_game = game_id or self.current_game
-        game_config = self.games_config[target_game]
-        
-        # 관련 문서 검색
-        docs_with_scores = self.search_documents(question, k=k, game_id=target_game)
-        
-        if not docs_with_scores:
-            return f"'{game_config['name']}' 관련 문서를 찾을 수 없습니다."
-        
-        # 컨텍스트 구성
+    def initialize_game_vectorstore(self, game_id: str, force_reindex: bool = False):
+        cfg = self.games_config[game_id]
+        base = self._get_base_index_name(game_id)
+        cs = self._checksum(cfg["rulebook_path"])
+        version = f"ts{int(time.time())}" if (force_reindex or not cs) else cs[:8]
+        index_name = f"{base}_{version}"
+        self.active_index_names[game_id] = index_name
+
+        # 기존 인덱스 재사용 시도
+        try:
+            vs = RedisVectorStore.from_existing_index(
+                embedding=self.embeddings,
+                index_name=index_name,
+                redis_url=self.redis_url,
+            )
+            vs.similarity_search("ping", k=1)
+            self.vectorstores[game_id] = vs
+            print(f"✅ '{cfg['name']}' 기존 인덱스 연결 ({index_name})")
+            return
+        except Exception:
+            pass
+
+        # 새 인덱스 생성
+        print(f"🔄 '{cfg['name']}' 인덱스 생성 중... ({index_name})")
+        docs = self._load_game_documents(game_id)
+        if not docs:
+            vs = RedisVectorStore.from_texts(
+                texts=["빈 인덱스 초기화"],
+                embedding=self.embeddings,
+                index_name=index_name,
+                redis_url=self.redis_url,
+            )
+            self.vectorstores[game_id] = vs
+            print(f"⚠️ 문서 없음 → 더미 인덱스 생성")
+            return
+
+        chunks = self.text_splitter.split_documents(docs)
+        print(f"📦 {len(docs)}개 문서를 {len(chunks)}개 청크로 분할")
+        vs = RedisVectorStore.from_documents(
+            chunks,
+            self.embeddings,
+            index_name=index_name,
+            redis_url=self.redis_url,
+        )
+        self.vectorstores[game_id] = vs
+        print(f"✅ 인덱스 생성 완료 ({index_name})")
+
+    def get_vectorstore(self, game_id: Optional[str] = None) -> RedisVectorStore:
+        gid = game_id or self.current_game
+        if gid not in self.vectorstores:
+            self.initialize_game_vectorstore(gid)
+        return self.vectorstores[gid]
+
+    def _expand_query(self, q: str) -> str:
+        # 간단한 한국어 동의어/표현 확장 (분배표 질문 보정)
+        expansions = []
+        if "광부" in q and ("전부" in q or "모두" in q or "다" in q):
+            expansions += ["전원 광부", "모두 광부", "사보타지 최소 인원", "방해꾼 최소 1명", "역할 카드 배분표"]
+        if "인원" in q or "참여" in q:
+            expansions += ["플레이어 수", "인원별 분배", "역할 카드 개수", "게임 준비 분배표"]
+        if not expansions:
+            return q
+        return q + " | " + " | ".join(expansions)
+
+    def search_documents(self, query: str, k: int = 10, game_id: Optional[str] = None):
+        gid = game_id or self.current_game
+        vs = self.get_vectorstore(gid)
+
+        expanded = self._expand_query(query)
+        results = vs.similarity_search_with_score(expanded, k=k)
+
+        # 간단 부스팅: 분배표/역할/준비 관련 키워드가 많을수록 상위
+        boost_keywords = ["역할", "분배", "참여", "인원", "역할 카드", "준비", "배분표", "방해꾼", "광부"]
+        def boost_score(doc: Document, score: float) -> float:
+            text = (doc.page_content or "") + " " + " ".join(doc.metadata.get("keywords", []))
+            hits = sum(1 for kw in boost_keywords if kw in text)
+            # 점수가 낮을수록 유사도↑인 구현도 있어 안전하게 보정치 빼기
+            return score - hits * 0.05
+
+        results = sorted(results, key=lambda x: boost_score(x[0], x[1]))
+        return results
+
+    def generate_answer(self, question: str, k: int = 10, game_id: Optional[str] = None) -> str:
+        gid = game_id or self.current_game
+        cfg = self.games_config[gid]
+        docs = self.search_documents(question, k=k, game_id=gid)
+        if not docs:
+            return "관련 문서를 찾지 못했습니다."
+
+        # 컨텍스트와 출처
         context_parts = []
-        for i, (doc, score) in enumerate(docs_with_scores):
-            context_part = f"[참고자료 {i+1}] (관련도: {score:.3f})\n{doc.page_content}"
-            
-            if doc.metadata:
-                metadata_items = []
-                for k, v in doc.metadata.items():
-                    if k not in ['game', 'game_name']:  # 게임 정보는 제외
-                        metadata_items.append(f"{k}: {v}")
-                if metadata_items:
-                    context_part += f"\n(출처: {', '.join(metadata_items)})"
-            
-            context_parts.append(context_part)
-        
-        context = "\n\n".join(context_parts)
-        
-        # 게임별 맞춤 프롬프트
-        system_prompt = f"""당신은 '{game_config['name']}' 게임 규칙 전문가입니다.
+        for i, (doc, score) in enumerate(docs, start=1):
+            src = doc.metadata.get("source", "출처 미상")
+            cat = doc.metadata.get("category", "카테고리 미상")
+            context_parts.append(f"[{i}] ({cat} · {src})\n{doc.page_content}")
+        context = "\n\n".join(context_parts[:6])
 
-게임 설명: {game_config['description']}
+        system_prompt = (
+            f"당신은 '{cfg['name']}' 보드게임 룰북 전문가입니다.\n"
+            "- 질문과 매칭되는 내용이 있다면 그것을 근거로 답변하세요."
+            "- 질문과 매칭되는 내용이 없어도 제공된 룰북 컨텍스트로 추론이 가능하다면 추론 후, 근거를 제시하세요."
+            "- 추론이 불가능하다면 '룰북 근거 없음'이라고 답하세요.\n"
+            "- 답변은 한국어로, '예', '아니오'를 먼저 답한 후, 근거를 답변하세요.\n"
+            "- 근거는 해당 문장을 그대로 출력하세요.\n"
+        )
 
-답변 지침:
-1. 제공된 컨텍스트 정보를 우선적으로 활용하세요
-2. '{game_config['name']}' 게임 규칙에만 집중하여 답변하세요
-3. 규칙이 명확하지 않은 경우, 가능한 해석을 제시하세요
-4. 참고자료 번호를 명시하여 근거를 제시하세요
-5. 간결하고 정확하게 답변하세요"""
-
-        user_prompt = f"""## 컨텍스트 정보:
-{context}
-
-## 질문:
-{question}
-
-위의 '{game_config['name']}' 룰북 정보를 바탕으로 질문에 답변해주세요."""
+        user_prompt = (
+            f"[질문]\n{question}\n\n"
+            f"[컨텍스트]\n{context}\n\n"
+            "[요청]\n"
+            "- 답변과 근거 문장만 깔끔하게 출력\n"
+            "- 마지막 줄에 근거로 [번호]를 나열"
+        )
 
         try:
-            full_prompt = f"{system_prompt}\n\n{user_prompt}"
-            response = self.llm.invoke([HumanMessage(content=full_prompt)])
-            
-            print(f"\n[DEBUG] '{game_config['name']}' 검색 결과:")
-            for i, (doc, score) in enumerate(docs_with_scores):
-                print(f"  {i+1}. 관련도: {score:.3f}")
-                if doc.metadata.get('category'):
-                    print(f"     카테고리: {doc.metadata['category']}")
-            
-            return response.content
-            
+            resp = self.llm.invoke([
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_prompt),
+            ]).content
         except Exception as e:
             return f"답변 생성 중 오류: {e}"
 
+        # 전체 출처 문자열 (언패킹 수정)
+        sources = "\n".join(
+            f"- [{i}] {doc.metadata.get('category','')}, {doc.metadata.get('source','')}"
+            for i, (doc, _) in enumerate(docs, start=1)
+        )
+
+        return f"{resp}\n\n참고 자료:\n{sources}"
+
     def get_system_info(self):
-        """시스템 정보 조회"""
-        print(f"🎮 다중 게임 RAG 시스템 정보")
-        print(f"  - Redis URL: {self.redis_url}")
-        print(f"  - LLM Provider: {self.llm_provider.upper()}")
-        print(f"  - 현재 게임: {self.games_config[self.current_game]['name']}")
-        print(f"  - 지원 게임 수: {len(self.games_config)}")
-        
-        print(f"\n📚 지원 게임 목록:")
-        for game_id, config in self.games_config.items():
-            status = "✅ 로드됨" if game_id in self.vectorstores else "⏳ 미로드"
-            current_mark = "👉 " if game_id == self.current_game else "   "
-            print(f"{current_mark}{config['name']} ({game_id}): {status}")
-            print(f"      {config['description']}")
-        
-        # Redis 정보
-        try:
-            r = redis.from_url(self.redis_url)
-            all_keys = r.keys("*")
-            game_keys = [key for key in all_keys if self.base_index_name.encode() in key]
-            print(f"\n💾 Redis 정보:")
-            print(f"  - 전체 키 수: {len(all_keys)}")
-            print(f"  - 게임 관련 키 수: {len(game_keys)}")
-        except Exception as e:
-            print(f"❌ Redis 정보 조회 실패: {e}")
-
-    def clear_game_data(self, game_id: str):
-        """특정 게임 데이터 삭제"""
-        if game_id not in self.games_config:
-            raise ValueError(f"지원하지 않는 게임: {game_id}")
-        
-        try:
-            r = redis.from_url(self.redis_url)
-            index_name = self._get_game_index_name(game_id)
-            r.delete(index_name)
-            
-            if game_id in self.vectorstores:
-                del self.vectorstores[game_id]
-            
-            game_name = self.games_config[game_id]["name"]
-            print(f"✅ '{game_name}' 데이터가 삭제되었습니다.")
-            
-        except Exception as e:
-            print(f"❌ 게임 데이터 삭제 실패: {e}")
-
-    def initialize_all_games(self):
-        """모든 게임의 벡터 스토어 초기화"""
-        print("🔄 모든 게임 벡터 스토어 초기화 중...")
-        
-        for game_id in self.games_config.keys():
-            try:
-                print(f"\n--- {self.games_config[game_id]['name']} 초기화 ---")
-                self.initialize_game_vectorstore(game_id)
-            except Exception as e:
-                print(f"❌ {self.games_config[game_id]['name']} 초기화 실패: {e}")
-        
-        print("\n✅ 모든 게임 초기화 완료!")
+        print("🎮 시스템 정보")
+        print(f"- Redis: {self.redis_url}")
+        print(f"- LLM: {self.llm_provider.upper()}")
+        print(f"- 현재 게임: {self.games_config[self.current_game]['name']}")
+        for gid, cfg in self.games_config.items():
+            mark = "👉" if gid == self.current_game else "  "
+            idx = self.active_index_names.get(gid, "(미생성)")
+            print(f"{mark} {cfg['name']} ({gid}) index: {idx}")
 
 def main():
-    """메인 함수"""
-    try:
-        print("=== 다중 게임 RAG 시스템 ===")
-        
-        # LLM 제공자 선택
-        print("\n=== LLM 제공자 선택 ===")
-        print("1. OpenAI (GPT-4o)")
-        print("2. Google Gemini (2.0 Flash)")
-        
-        current_provider = os.getenv("LLM_PROVIDER", "gemini").lower()
-        print(f"현재 환경변수: {current_provider.upper()}")
-        
-        choice = input("선택 (1/2, 엔터: 환경변수 사용): ").strip()
-        provider = "openai" if choice == "1" else "gemini" if choice == "2" else current_provider
-        
-        # RAG 시스템 초기화
-        rag = MultiGameRAGSystem(llm_provider=provider)
-        
-        # 시스템 정보 출력
-        print("\n")
-        rag.get_system_info()
-        
-        # 초기화 옵션
-        print("\n=== 초기화 옵션 ===")
-        print("1. 기존 데이터 사용")
-        print("2. 현재 게임만 초기화")
-        print("3. 모든 게임 초기화")
-        print("4. 시스템 정보만 보기")
-        
-        init_choice = input("선택 (1-4, 기본값: 1): ").strip() or "1"
-        
-        if init_choice == "2":
-            rag.initialize_game_vectorstore(rag.current_game)
-        elif init_choice == "3":
-            rag.initialize_all_games()
-        elif init_choice == "4":
-            return
-        
-        # 대화형 모드
-        print(f"\n=== 대화형 모드 ===")
-        print(f"현재 게임: {rag.games_config[rag.current_game]['name']}")
-        print("명령어:")
-        print("  - 게임 전환: /switch <game_id>")
-        print("  - 게임 목록: /games")
-        print("  - 시스템 정보: /info")
-        print("  - 종료: /exit 또는 exit")
-        
-        while True:
-            user_input = input(f"\n[{rag.games_config[rag.current_game]['name']}] 질문: ").strip()
-            
-            if user_input.lower() in ['exit', '/exit']:
-                print("👋 시스템을 종료합니다.")
-                break
-            
-            elif user_input.startswith('/switch '):
-                game_id = user_input[8:].strip()
-                try:
-                    rag.switch_game(game_id)
-                except ValueError as e:
-                    print(f"❌ {e}")
-                    print("사용 가능한 게임 ID:", list(rag.games_config.keys()))
-            
-            elif user_input == '/games':
-                print("\n📚 지원 게임 목록:")
-                for game_id, config in rag.games_config.items():
-                    current_mark = "👉 " if game_id == rag.current_game else "   "
-                    print(f"{current_mark}{config['name']} (ID: {game_id})")
-                    print(f"      {config['description']}")
-            
-            elif user_input == '/info':
-                print()
-                rag.get_system_info()
-            
-            elif user_input:
-                answer = rag.generate_answer(user_input)
-                print(f"\n💬 답변: {answer}")
-            
-            else:
-                print("⚠️ 질문을 입력하거나 명령어를 사용하세요.")
-    
-    except Exception as e:
-        print(f"❌ 시스템 실행 중 오류: {e}")
+    print("=== 다중 게임 RAG 시스템 ===")
+    provider = os.getenv("LLM_PROVIDER", "openai").lower()
+    choice = input("LLM 선택 (1: OpenAI, 2: Gemini, 엔터: 환경변수 사용): ").strip()
+    if choice == "1": provider = "openai"
+    elif choice == "2": provider = "gemini"
+
+    rag = MultiGameRAGSystem(llm_provider=provider)
+    rag.initialize_game_vectorstore("sabotage")  # 최초 초기화
+
+    print("\n명령어: /reindex, /info, /exit")
+    while True:
+        q = input(f"\n[사보타지] 질문: ").strip()
+        if not q: 
+            print("질문을 입력하세요.")
+            continue
+        if q in ("/exit", "exit"): 
+            print("종료합니다."); break
+        if q == "/info":
+            rag.get_system_info(); continue
+        if q == "/reindex":
+            print("🔄 강제 재인덱스 중...")
+            rag.initialize_game_vectorstore("sabotage", force_reindex=True)
+            continue
+
+        answer = rag.generate_answer(q, k=12)
+        print(f"\n💬 답변: {answer}")
 
 if __name__ == "__main__":
     main()
