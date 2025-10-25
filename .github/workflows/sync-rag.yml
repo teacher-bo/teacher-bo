@@ -23,9 +23,7 @@ jobs:
 
       - name: Upload updated RAG JSON files to S3
         run: |
-          aws s3 sync langchain/rag_documents s3://teacher-bo-capstone-rag-db \
-            --endpoint-url "$S3_ENDPOINT" \
-            --delete
+          aws s3 sync langchain/rag_documents s3://teacher-bo-capstone-rag-db --delete
 
       - name: Trigger Knowledge Base sync (start-ingestion-job)
         run: |
