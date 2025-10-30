@@ -45,9 +45,14 @@ export class PollyService {
         sampleRate = '22050',
         languageCode = LanguageCode.ko_KR,
       } = options;
+      
+      const ssmlText = this.buildSsml(text, {
+        language: 'ko-KR',
+      });
 
       const command = new SynthesizeSpeechCommand({
-        Text: text,
+        Text: ssmlText,
+        TextType: 'ssml', 
         VoiceId: voiceId,
         Engine: engine,
         OutputFormat: outputFormat,
@@ -85,13 +90,36 @@ export class PollyService {
       throw new BadRequestException('Failed to synthesize speech');
     }
   }
+  
+  /**
+   * Plain text를 받아 간단한 SSML로 감싸서 반환합니다.
+   * - XML 특수문자 이스케이프
+   */
+  
+  buildSsml(
+    text: string,
+    opts?: { language?: string },
+  ): string {
+    const escapeXml = (s: string) =>
+      s
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
 
-  async synthesizeSpeechAsBase64(
-    options: SynthesizeSpeechOptions,
-  ): Promise<string> {
-    const audioBuffer = await this.synthesizeSpeech(options);
-    return audioBuffer.toString('base64');
+    let body = escapeXml(text);
+    const langAttr = opts?.language ? ` xml:lang="${opts.language}"` : '';
+    // return `<speak${langAttr}> <prosody rate="x-fast"> ${body}</prosody> </speak>`;
+    return `<speak${langAttr}> ${body} </speak>`;
   }
+
+  // async synthesizeSpeechAsBase64(
+  //   options: SynthesizeSpeechOptions,
+  // ): Promise<string> {
+  //   const audioBuffer = await this.synthesizeSpeech(options);
+  //   return audioBuffer.toString('base64');
+  // }
 
   // 사용 가능한 한국어 음성 목록
   getAvailableKoreanVoices(): Array<{
