@@ -18,3 +18,9 @@ deactivate               # 사용 종료
 ```bash
 pip install -r requirements.txt
 ```
+
+## 서버 시작하기
+
+```bash
+fastapi dev app/main.py
+```

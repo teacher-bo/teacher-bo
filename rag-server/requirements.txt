@@ -13,6 +13,5 @@ pydantic>=2.0.0
 pypdf>=3.0.0
 langchain-text-splitters>=0.0.1
 
-# fastapi 배포시 사용
-fastapi>=0.120.3
-uvicorn>=0.38.0
+# fastapi 추가 의존성 설치
+fastapi[standard]
