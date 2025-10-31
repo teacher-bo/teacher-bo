@@ -57,6 +57,100 @@ export const usePollyTTS = () => {
     }
   );
 
+  /**
+   * 이전 사운드를 정리하는 헬퍼 함수
+   */
+  const cleanupCurrentSound = useCallback(async () => {
+    if (currentSound) {
+      try {
+        await currentSound.unloadAsync();
+      } catch (err) {
+        console.warn("Error unloading sound:", err);
+      }
+      setCurrentSound(null);
+      setIsPlaying(false);
+    }
+  }, [currentSound]);
+
+  /**
+   * TTS API를 호출하여 오디오 데이터를 가져오는 함수
+   */
+  const synthesizeAudio = useCallback(
+    async (text: string, options?: Partial<SynthesizeSpeechInput>) => {
+      console.log("Synthesizing speech with Polly:", text.substring(0, 50) + "...");
+
+      const { data } = await synthesizeSpeechMutation({
+        variables: {
+          input: {
+            text,
+            voiceId: "Seoyeon",
+            engine: "neural",
+            outputFormat: "mp3",
+            sampleRate: "22050",
+            languageCode: "ko-KR",
+            ...options,
+          },
+        },
+      });
+
+      if (!data?.synthesizeSpeech) {
+        throw new Error("Failed to synthesize speech");
+      }
+
+      const { audioBase64, contentType, audioSize } = data.synthesizeSpeech;
+      console.log("Created audio from Polly response, size:", audioSize);
+
+      return `data:${contentType};base64,${audioBase64}`;
+    },
+    [synthesizeSpeechMutation]
+  );
+
+  /**
+   * 오디오 재생이 완료될 때까지 대기하는 Promise
+   */
+  const waitForPlaybackComplete = useCallback(
+    (sound: Audio.Sound): Promise<void> => {
+      return new Promise((resolve) => {
+        let isResolved = false;
+
+        const resolveOnce = () => {
+          if (!isResolved) {
+            isResolved = true;
+            setIsPlaying(false);
+            sound.unloadAsync().catch(() => {});
+            setCurrentSound(null);
+            resolve();
+          }
+        };
+
+        // 재생 완료 콜백 등록
+        sound.setOnPlaybackStatusUpdate((status: AVPlaybackStatus) => {
+          if (status.isLoaded && status.didJustFinish) {
+            console.log("Audio playback finished");
+            resolveOnce();
+          }
+        });
+
+        // 안전장치: 30초 후 강제 완료
+        const timeoutId = setTimeout(() => {
+          console.log("Audio playback timeout, forcing completion");
+          resolveOnce();
+        }, 30000);
+
+        // Promise가 resolve되면 타임아웃 정리
+        const originalResolve = resolve;
+        resolve = () => {
+          clearTimeout(timeoutId);
+          originalResolve();
+        };
+      });
+    },
+    []
+  );
+
+  /**
+   * 텍스트를 음성으로 변환하고 재생 완료까지 대기
+   */
   const speakText = useCallback(
     async (
       text: string,
@@ -66,73 +160,37 @@ export const usePollyTTS = () => {
         setIsLoading(true);
         setError(null);
 
-        // 이전 재생 중인 사운드가 있다면 정지
-        if (currentSound) {
-          await currentSound.unloadAsync();
-          setCurrentSound(null);
-          setIsPlaying(false);
-        }
+        // 1. 이전 사운드 정리
+        await cleanupCurrentSound();
 
-        console.log(
-          "Synthesizing speech with Polly:",
-          text.substring(0, 50) + "..."
-        );
+        // 2. TTS API 호출
+        const audioUri = await synthesizeAudio(text, options);
 
-        const { data } = await synthesizeSpeechMutation({
-          variables: {
-            input: {
-              text,
-              voiceId: "Seoyeon", // 기본값
-              engine: "neural",
-              outputFormat: "mp3",
-              sampleRate: "22050",
-              languageCode: "ko-KR",
-              ...options,
-            },
-          },
-        });
-
-        if (!data?.synthesizeSpeech) {
-          throw new Error("Failed to synthesize speech");
-        }
-
-        const { audioBase64, contentType } = data.synthesizeSpeech;
-
-        // Base64를 URI로 변환
-        const audioUri = `data:${contentType};base64,${audioBase64}`;
-
-        console.log(
-          "Creating audio sound from Polly response, size:",
-          data.synthesizeSpeech.audioSize
-        );
-
-        // Audio 객체 생성 및 재생
+        // 3. 오디오 객체 생성
         const { sound } = await Audio.Sound.createAsync(
           { uri: audioUri },
-          { shouldPlay: true, volume: 1.0 },
-          (status: AVPlaybackStatus) => {
-            if (status.isLoaded) {
-              if (status.didJustFinish) {
-                setIsPlaying(false);
-                sound.unloadAsync();
-                setCurrentSound(null);
-              }
-            }
-          }
+          { shouldPlay: false, volume: 1.0 }
         );
 
+        // 4. 오디오 재생
         setCurrentSound(sound);
+        await sound.playAsync();
         setIsPlaying(true);
-
         console.log("Successfully started playing Polly TTS audio");
+
+        // 6. 재생 완료까지 대기
+        await waitForPlaybackComplete(sound);
       } catch (err) {
         console.error("Error in speakText:", err);
         setError(err instanceof Error ? err.message : "Failed to speak text");
+        await cleanupCurrentSound();
+        throw err;
       } finally {
         setIsLoading(false);
       }
+      console.log("speakText completed")
     },
-    [synthesizeSpeechMutation, currentSound]
+    [synthesizeAudio, cleanupCurrentSound, waitForPlaybackComplete]
   );
 
   const stopSpeaking = useCallback(async (): Promise<void> => {

@@ -50,6 +50,9 @@ export default function HomeScreen() {
     error: ttsError,
   } = usePollyTTS();
 
+  // 웨이크워드 중복 처리용 플래그
+  const wakeHandledRef = useRef(false);
+
   const [toggleRecordingFlag, setToggleRecordingFlag] = useState(false);
   const {
     isListening: isWakeWordListening,
@@ -58,11 +61,25 @@ export default function HomeScreen() {
     stopListening: stopWakeWordListening,
     error: wakeWordError,
   } = useWakeWord(
-    () => {
-      // "보쌤" 감지 시 녹음 시작
-      if (!isRecording && !isSpeaking && !aiLoading && !ttsLoading) {
-        console.log("Wake word detected! Starting recording...");
-        setToggleRecordingFlag((p) => !p);
+    async () => {
+      if (wakeHandledRef.current) return;
+      if (isRecording || isSpeaking || aiLoading || ttsLoading) return;
+
+      wakeHandledRef.current = true;
+      console.log("Wake word detected!");
+
+      try {
+        // speakText가 재생 완료까지 대기하므로 간단히 await만 사용
+        await speakText("안녕하세요. 무엇을 도와드릴까요?");
+        
+        console.log("Speech completed, starting recording...");
+        setToggleRecordingFlag(true);
+      } catch (err) {
+        console.error("Greeting TTS failed", err);
+      } finally {
+        setTimeout(() => {
+          wakeHandledRef.current = false;
+        }, 10000);
       }
     },
     {
