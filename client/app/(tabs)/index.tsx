@@ -50,10 +50,13 @@ export default function HomeScreen() {
     error: ttsError,
   } = usePollyTTS();
 
-  // 웨이크워드 중복 처리용 플래그
-  const wakeHandledRef = useRef(false);
-
   const [toggleRecordingFlag, setToggleRecordingFlag] = useState(false);
+  const [shouldAutoRecord, setShouldAutoRecord] = useState(false);
+
+  /**
+ * Wake word 감지 및 처리 로직
+ * - 중복 실행 방지를 위해 다른 작업 중일 때는 무시
+ */
   const {
     isListening: isWakeWordListening,
     isSupported: isWakeWordSupported,
@@ -62,24 +65,17 @@ export default function HomeScreen() {
     error: wakeWordError,
   } = useWakeWord(
     async () => {
-      if (wakeHandledRef.current) return;
       if (isRecording || isSpeaking || aiLoading || ttsLoading) return;
 
-      wakeHandledRef.current = true;
       console.log("Wake word detected!");
 
       try {
-        // speakText가 재생 완료까지 대기하므로 간단히 await만 사용
         await speakText("안녕하세요. 무엇을 도와드릴까요?");
         
         console.log("Speech completed, starting recording...");
         setToggleRecordingFlag(true);
       } catch (err) {
         console.error("Greeting TTS failed", err);
-      } finally {
-        setTimeout(() => {
-          wakeHandledRef.current = false;
-        }, 10000);
       }
     },
     {
@@ -89,13 +85,14 @@ export default function HomeScreen() {
       continuous: true,
     }
   );
+
+  // toggleRecordingFlag가 true로 변경되면 녹음 시작
   useEffect(() => {
     if (toggleRecordingFlag) {
       startRecording();
     }
   }, [toggleRecordingFlag]);
-
-  // 컴포넌트 마운트 시 웨이크워드 리스닝 시작
+  // 컴포넌트 마운트 시 wakeword 리스닝 시작
   useEffect(() => {
     if (isWakeWordSupported) {
       startWakeWordListening();
@@ -176,6 +173,7 @@ export default function HomeScreen() {
 
       await stopAudioRecording();
       currentlyAddingMessageRef.current = false;
+      console.log("2. set isRecordingState to false", isRecording);
 
       // 현재 사용자 메시지에서 텍스트 추출
       const lastMessage = messages[messages.length - 1];
@@ -218,9 +216,16 @@ export default function HomeScreen() {
 
             setMessages((prev) => [...prev, botMessage]);
 
-            // AI 응답을 음성으로 재생
-            setTimeout(() => {
-              speakText(aiResponse.message);
+            // AI 응답을 음성으로 재생하고 완료 후 다시 녹음 시작
+            setTimeout(async () => {
+              try {
+                await speakText(aiResponse.message);
+                console.log("AI 응답 완료, 자동 녹음 대기 상태 설정...");
+                
+                setShouldAutoRecord(true);
+              } catch (err) {
+                console.error("TTS 재생 중 오류:", err);
+              }
             }, 500);
           }
         }
@@ -257,6 +262,21 @@ export default function HomeScreen() {
   const handleSourceClick = (source: string) => {
     Alert.alert("출처 정보", source, [{ text: "확인", style: "default" }]);
   };
+
+  useEffect(() => {
+    if (!isRecording && !isSpeaking && !aiLoading && !ttsLoading && shouldAutoRecord) {
+      // console.log("모든 상태 준비 완료:", { isRecording, isSpeaking, aiLoading, ttsLoading });
+      
+      // 1초 후 자동 녹음 재시작
+      const timeoutId = setTimeout(() => {
+        console.log("녹음 재시작");
+        startRecording();
+        setShouldAutoRecord(false);
+      }, 1000);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isRecording, isSpeaking, aiLoading, ttsLoading, shouldAutoRecord]);
 
   return (
     <SafeAreaView style={styles.container}>
