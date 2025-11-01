@@ -38,7 +38,6 @@ class PromptTemplate:
     - game_title은 반드시 "{game_title}"로 설정하세요.
     - 보드게임 일반 상식이나 유사한 게임의 규칙을 적용하지 마세요.
     - "아마도", "보통", "일반적으로"와 같은 추측성 표현 사용 금지.
-    - Context에서 근거를 찾을 수 없으면 answer_type을 "OTHERS"로 하고, description에 "룰북에서 해당 정보를 찾을 수 없습니다"라고 명확히 작성하세요.
     
     **올바른 답변 예시:**
     - Context에 명확한 근거가 있을 때만 YES/NO 또는 구체적인 설명

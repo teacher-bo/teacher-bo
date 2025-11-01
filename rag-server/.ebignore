@@ -1,0 +1,11 @@
+# EB 배포 시 제외할 파일 (.gitignore와 독립적)
+venv/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+example/
+.env.example
+*.md
+.git/
+.gitignore

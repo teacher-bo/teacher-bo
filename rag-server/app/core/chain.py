@@ -46,7 +46,7 @@ def create_rag_chain(
     # LLM 설정
     model = ChatOpenAI(
         temperature=0.1,
-        model_name="gpt-4o-mini",
+        model_name="gpt-5-mini",
     )
     
     def retrieve_context(inputs):
