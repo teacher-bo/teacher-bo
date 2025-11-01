@@ -14,6 +14,7 @@ import { useStreamingAudioService } from "../../hooks/useStreamingAudioService";
 import { useOpenAI } from "../../hooks/useOpenAI";
 import { usePollyTTS } from "../../hooks/usePollyTTS";
 import { useWakeWord } from "../../hooks/useWakeWord";
+import { TestScheduler } from "rxjs/testing";
 
 interface Message {
   id: string;
@@ -70,7 +71,15 @@ export default function HomeScreen() {
       console.log("Wake word detected!");
 
       try {
-        await speakText("안녕하세요. 무엇을 도와드릴까요?");
+        const text = `
+          <speak xml:lang="ko-KR">
+            <prosody rate="medium" volume="loud"> 안녕하세요!</prosody>
+            <break time="100ms"/>
+            무엇을 도와드릴까요?
+          </speak>
+        `;
+        await speakText(text);
+        // await speakText("안녕하세요. 무엇을 도와드릴까요?");
         
         console.log("Speech completed, starting recording...");
         setToggleRecordingFlag(true);
@@ -173,7 +182,6 @@ export default function HomeScreen() {
 
       await stopAudioRecording();
       currentlyAddingMessageRef.current = false;
-      console.log("2. set isRecordingState to false", isRecording);
 
       // 현재 사용자 메시지에서 텍스트 추출
       const lastMessage = messages[messages.length - 1];
@@ -267,9 +275,9 @@ export default function HomeScreen() {
     if (!isRecording && !isSpeaking && !aiLoading && !ttsLoading && shouldAutoRecord) {
       // console.log("모든 상태 준비 완료:", { isRecording, isSpeaking, aiLoading, ttsLoading });
       
-      // 1초 후 자동 녹음 재시작
+      // 녹음 재시작
       const timeoutId = setTimeout(() => {
-        console.log("녹음 재시작");
+        console.log("restart recording");
         startRecording();
         setShouldAutoRecord(false);
       }, 1000);

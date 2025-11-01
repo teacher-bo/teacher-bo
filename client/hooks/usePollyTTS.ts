@@ -126,7 +126,6 @@ export const usePollyTTS = () => {
         // 재생 완료 콜백 등록
         sound.setOnPlaybackStatusUpdate((status: AVPlaybackStatus) => {
           if (status.isLoaded && status.didJustFinish) {
-            console.log("Audio playback finished");
             resolveOnce();
           }
         });
