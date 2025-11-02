@@ -52,11 +52,11 @@ export default function HomeScreen() {
   } = usePollyTTS();
 
   const [recordingFlag, setRecordingFlag] = useState(false);
+  const [isBusy, setIsBusy] = useState(false);
 
   /**
- * Wake word 감지 및 처리 로직
- * - 중복 실행 방지를 위해 다른 작업 중일 때는 무시
- */
+   * Wake word 감지 및 처리 로직
+   */
   const {
     isListening: isWakeWordListening,
     isSupported: isWakeWordSupported,
@@ -65,9 +65,10 @@ export default function HomeScreen() {
     error: wakeWordError,
   } = useWakeWord(
     async () => {
-      if (isRecording || isSpeaking || aiLoading || ttsLoading) return;
+      if (isBusy) return;
 
       console.log("Wake word detected!");
+      setIsBusy(true);
 
       try {
         const text = `
@@ -84,6 +85,7 @@ export default function HomeScreen() {
         setRecordingFlag(true);
       } catch (err) {
         console.error("Greeting TTS failed", err);
+        setIsBusy(false);
       }
     },
     {
@@ -96,11 +98,21 @@ export default function HomeScreen() {
 
   // recordingFlag가 true로 변경되면 녹음 시작
   useEffect(() => {
+    console.log("RecordingFlag - 현재 상태:", { 
+      isRecording, 
+      isSpeaking, 
+      aiLoading, 
+      ttsLoading,
+      isBusy,
+      recordingFlag
+    });
     if (recordingFlag) {
+      setIsBusy(true);
       startRecording();
       setRecordingFlag(false);
     }
   }, [recordingFlag]);
+
   // 컴포넌트 마운트 시 wakeword 리스닝 시작
   useEffect(() => {
     if (isWakeWordSupported) {
@@ -120,71 +132,81 @@ export default function HomeScreen() {
     if (sttDatas.length === 0) return;
     setMessages((prev) => {
       const latestData = sttDatas[sttDatas.length - 1];
+      const lastMessage = prev[prev.length - 1];
+      
+      console.log("현재 상태:", {
+        currentlyAddingMessage: currentlyAddingMessageRef.current,
+        lastMessageIsUser: lastMessage?.isUser,
+        lastMessageId: lastMessage?.id,
+        newDataId: latestData.resultId
+      });
 
-      if (currentlyAddingMessageRef.current) {
-        const message = prev[prev.length - 1];
-        const exists = message.textItems.find(
+     if (currentlyAddingMessageRef.current && lastMessage?.isUser) {
+        const exists = lastMessage.textItems.find(
           (item) => item.resultId === latestData.resultId
         );
 
         let textItems: Message["textItems"];
         if (exists) {
-          textItems = message.textItems.map((item) =>
+          textItems = lastMessage.textItems.map((item) =>
             item.resultId === latestData.resultId
               ? { ...item, text: latestData.text }
               : item
           );
         } else {
           textItems = [
-            ...message.textItems,
+            ...lastMessage.textItems,
             { resultId: latestData.resultId, text: latestData.text },
           ];
         }
 
-        return prev.map((m) => (m.id === message.id ? { ...m, textItems } : m));
-      }
+        return prev.map((m) => (m.id === lastMessage.id ? { ...m, textItems } : m));
+    }
 
-      currentlyAddingMessageRef.current = true;
+    currentlyAddingMessageRef.current = true;
 
-      const newMessage: Message = {
-        id: latestData.resultId,
-        textItems: [{ resultId: latestData.resultId, text: latestData.text }],
-        isUser: true,
-        timestamp: new Date(latestData.timestamp),
-      };
+    const newMessage: Message = {
+      id: latestData.resultId,
+      textItems: [{ resultId: latestData.resultId, text: latestData.text }],
+      isUser: true,
+      timestamp: new Date(latestData.timestamp),
+    };
 
-      return [...prev, newMessage];
+    console.log("생성된 메시지:", newMessage);
+    return [...prev, newMessage];
     });
   }, [sttDatas]);
 
   const startRecording = async () => {
     try {
-      // 중복 실행 방지
       if (isRecording || isSpeaking || aiLoading || ttsLoading) {
         console.log("Recording already in progress or system busy");
         return;
       }
 
+      currentlyAddingMessageRef.current = false;
+
       await startAudioRecording();
+      console.log("Recording started");
     } catch (err) {
       console.error("Failed to start recording", err);
-      // Alert.alert("오류", "음성 녹음을 시작할 수 없습니다.");
+      setIsBusy(false);
     }
   };
 
   const stopRecording = async () => {
     try {
-      // 중복 실행 방지
-      if (!isRecording) {
+      if (!isBusy) {
         console.log("Not currently recording");
         return;
       }
 
+      console.log("Recording stopped, current message state:", currentlyAddingMessageRef.current);
       await stopAudioRecording();
-      currentlyAddingMessageRef.current = false;
 
-      // 현재 사용자 메시지에서 텍스트 추출
       const lastMessage = messages[messages.length - 1];
+      console.log("Last message:", lastMessage);
+
       if (
         lastMessage &&
         lastMessage.isUser &&
@@ -196,7 +218,6 @@ export default function HomeScreen() {
           .trim();
 
         if (userText) {
-          // OpenAI API 호출하여 응답 받기
           console.log("Sending to OpenAI:", userText);
 
           const aiResponse = await chatWithAI({
@@ -205,11 +226,10 @@ export default function HomeScreen() {
             context: messages
               .slice(-4)
               .map((msg) => msg.textItems.map((item) => item.text).join(" "))
-              .filter(Boolean), // 최근 4개 메시지를 컨텍스트로 사용
+              .filter(Boolean),
           });
 
           if (aiResponse) {
-            // AI 응답을 메시지로 추가
             const botMessage: Message = {
               id: `bot_${Date.now()}_${Math.random()
                 .toString(36)
@@ -224,17 +244,15 @@ export default function HomeScreen() {
 
             setMessages((prev) => [...prev, botMessage]);
 
-            // AI 응답을 음성으로 재생하고 완료 후 다시 녹음 시작
-            setTimeout(async () => {
-              try {
-                await speakText(aiResponse.message);
-                console.log("AI 응답 완료, 자동 녹음 대기 상태 설정...");
-                
-                setRecordingFlag(true);
-              } catch (err) {
-                console.error("TTS 재생 중 오류:", err);
-              }
-            }, 500);
+            try {
+              await new Promise(resolve => setTimeout(resolve, 500));
+              await speakText(aiResponse.message);
+              console.log("TTS 완료, 다음 녹음 준비");
+              setRecordingFlag(true);
+              return;
+            } catch (err) {
+              console.error("TTS 재생 중 오류:", err);
+            }
           }
         }
       }
@@ -256,13 +274,33 @@ export default function HomeScreen() {
     } catch (err) {
       console.error("Failed to stop recording", err);
       Alert.alert("오류", "음성 처리 중 오류가 발생했습니다.");
+    } finally {
+      console.log("stopRecording end, reset flags");
+      currentlyAddingMessageRef.current = false;
+      setIsBusy(false);
     }
   };
 
   const toggleRecording = () => {
+    console.log("Toggle recording - 현재 상태:", { 
+      isRecording, 
+      isSpeaking, 
+      aiLoading, 
+      ttsLoading,
+      isBusy
+    });
+
+    // 시스템이 바쁜 상태면 무시
+    if (isSpeaking || aiLoading || ttsLoading) {
+      console.log("시스템 바쁨, 요청 무시");
+      return;
+    }
+
     if (isRecording) {
+      console.log("녹음 중지 요청");
       stopRecording();
     } else {
+      console.log("녹음 시작 요청");
       setRecordingFlag(true);
     }
   };
