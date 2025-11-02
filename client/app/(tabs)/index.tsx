@@ -52,7 +52,6 @@ export default function HomeScreen() {
   } = usePollyTTS();
 
   const [toggleRecordingFlag, setToggleRecordingFlag] = useState(false);
-  const [shouldAutoRecord, setShouldAutoRecord] = useState(false);
 
   /**
  * Wake word 감지 및 처리 로직
@@ -232,7 +231,7 @@ export default function HomeScreen() {
                 await speakText(aiResponse.message);
                 console.log("AI 응답 완료, 자동 녹음 대기 상태 설정...");
                 
-                setShouldAutoRecord(true);
+                setToggleRecordingFlag(true);
               } catch (err) {
                 console.error("TTS 재생 중 오류:", err);
               }
@@ -272,21 +271,6 @@ export default function HomeScreen() {
   const handleSourceClick = (source: string) => {
     Alert.alert("출처 정보", source, [{ text: "확인", style: "default" }]);
   };
-
-  useEffect(() => {
-    if (!isRecording && !isSpeaking && !aiLoading && !ttsLoading && shouldAutoRecord) {
-      // console.log("모든 상태 준비 완료:", { isRecording, isSpeaking, aiLoading, ttsLoading });
-      
-      // 녹음 재시작
-      const timeoutId = setTimeout(() => {
-        console.log("restart recording");
-        startRecording();
-        setShouldAutoRecord(false);
-      }, 1000);
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [isRecording, isSpeaking, aiLoading, ttsLoading, shouldAutoRecord]);
 
   return (
     <SafeAreaView style={styles.container}>
