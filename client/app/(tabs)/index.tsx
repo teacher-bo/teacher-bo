@@ -99,6 +99,7 @@ export default function HomeScreen() {
   useEffect(() => {
     if (toggleRecordingFlag) {
       startRecording();
+      setToggleRecordingFlag(false);
     }
   }, [toggleRecordingFlag]);
   // 컴포넌트 마운트 시 wakeword 리스닝 시작
