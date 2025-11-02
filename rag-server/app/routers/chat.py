@@ -7,7 +7,7 @@ from app.config.prompts import PromptTemplate
 from app.models.schemas import OutputStructure
 from app.core.vectorstore import load_vectorstore
 from app.core.chain import create_rag_chain, ask_question
-from app.core.memory import get_session_history
+from app.core.memory import get_session_history, delete_session_history
 
 router = APIRouter()
 
@@ -70,8 +70,7 @@ async def chat(request: ChatRequest):
 @router.delete("/session/{session_id}")
 async def clear_session(session_id: str):
     """특정 세션의 대화 기록 삭제"""
-    from app.core.memory import store
-    if session_id in store:
-        del store[session_id]
+    success = delete_session_history(session_id)
+    if success:
         return {"message": f"세션 '{session_id}' 삭제됨"}
-    return {"message": f"세션 '{session_id}' 없음"}
+    return {"message": f"세션 '{session_id}' 삭제 실패 또는 존재하지 않음"}
