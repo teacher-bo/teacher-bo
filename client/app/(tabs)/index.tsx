@@ -51,7 +51,7 @@ export default function HomeScreen() {
     error: ttsError,
   } = usePollyTTS();
 
-  const [toggleRecordingFlag, setToggleRecordingFlag] = useState(false);
+  const [recordingFlag, setRecordingFlag] = useState(false);
 
   /**
  * Wake word 감지 및 처리 로직
@@ -79,10 +79,9 @@ export default function HomeScreen() {
         `;
         
         await speakText(text);
-        // await speakText("안녕하세요. 무엇을 도와드릴까요?");
         
         console.log("Speech completed, starting recording...");
-        setToggleRecordingFlag(true);
+        setRecordingFlag(true);
       } catch (err) {
         console.error("Greeting TTS failed", err);
       }
@@ -95,13 +94,13 @@ export default function HomeScreen() {
     }
   );
 
-  // toggleRecordingFlag가 true로 변경되면 녹음 시작
+  // recordingFlag가 true로 변경되면 녹음 시작
   useEffect(() => {
-    if (toggleRecordingFlag) {
+    if (recordingFlag) {
       startRecording();
-      setToggleRecordingFlag(false);
+      setRecordingFlag(false);
     }
-  }, [toggleRecordingFlag]);
+  }, [recordingFlag]);
   // 컴포넌트 마운트 시 wakeword 리스닝 시작
   useEffect(() => {
     if (isWakeWordSupported) {
@@ -231,7 +230,7 @@ export default function HomeScreen() {
                 await speakText(aiResponse.message);
                 console.log("AI 응답 완료, 자동 녹음 대기 상태 설정...");
                 
-                setToggleRecordingFlag(true);
+                setRecordingFlag(true);
               } catch (err) {
                 console.error("TTS 재생 중 오류:", err);
               }
@@ -264,7 +263,7 @@ export default function HomeScreen() {
     if (isRecording) {
       stopRecording();
     } else {
-      startRecording();
+      setRecordingFlag(true);
     }
   };
 
