@@ -61,7 +61,7 @@ print("✅ Upstage Solar Embeddings 준비 완료")
 
 # 4. ChromaDB에 저장
 print("\n5️⃣ ChromaDB에 저장 중...")
-persist_directory = "../chroma_db/sabotage"  # 로컬 저장 경로
+persist_directory = "./chroma_db/sabotage"  # 로컬 저장 경로 # TODO 경로 변경함
 
 vectorstore = Chroma.from_documents(
     documents=splits,
