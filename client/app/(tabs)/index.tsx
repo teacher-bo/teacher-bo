@@ -26,19 +26,7 @@ interface Message {
 }
 
 export default function HomeScreen() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "welcome_1",
-      isUser: false,
-      textItems: [
-        {
-          resultId: "welcome_text",
-          text: "안녕하세요! 보쌤입니다. 보드게임에 대해 무엇이든 물어보세요!",
-        },
-      ],
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
 
   const generateChatSessionId = () =>
     `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
