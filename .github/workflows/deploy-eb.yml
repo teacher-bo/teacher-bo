@@ -1,0 +1,174 @@
+name: Deploy to Elastic Beanstalk
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "rag-server/**"
+      - ".github/workflows/deploy-vector-db.yml"
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ap-northeast-2
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-access-key-id: ${{ secrets.RAG_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.RAG_AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Create .env file
+        run: |
+          cd rag-server
+          echo "${{ secrets.RAG_ENV }}" > .env
+          echo "✅ .env file created"
+
+      - name: Configure AWS credentials for Vector DB
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-access-key-id: ${{ secrets.RAG_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.RAG_AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.VECTOR_DB_GEN_AWS_REGION }}
+
+      - name: Download chroma_db from S3
+        run: |
+          cd rag-server
+          echo "📥 Downloading chroma_db from S3..."
+          aws s3 cp s3://${{ secrets.VECTOR_DB_GEN_S3_BUCKET_NAME }}/chroma_db/ chroma_db/ --recursive
+          echo "✅ chroma_db downloaded successfully"
+          ls -la chroma_db/
+
+      - name: Reconfigure AWS credentials for deployment
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-access-key-id: ${{ secrets.RAG_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.RAG_AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Create deployment package
+        run: |
+          cd rag-server
+          echo "📦 Creating deployment package..."
+
+          zip -r ../deploy.zip \
+            application.py \
+            requirements.txt \
+            Procfile \
+            app/ \
+            chroma_db/ \
+            .ebextensions/ \
+            .ebignore \
+            .env \
+            -x "*.pyc" \
+            -x "__pycache__/*" \
+            -x "app/__pycache__/*" \
+            -x "*.DS_Store" \
+            -x "venv/*"
+
+          cd ..
+          echo "📊 Deployment package created:"
+          ls -lh deploy.zip
+
+      - name: Get timestamp
+        id: time
+        run: echo "timestamp=$(date +%Y%m%d_%H%M%S)" >> $GITHUB_OUTPUT
+
+      - name: Upload to S3
+        id: s3_upload
+        run: |
+          VERSION_LABEL="ver-${{ steps.time.outputs.timestamp }}"
+          S3_BUCKET="${{ secrets.RAG_S3_BUCKET }}"
+          S3_KEY="${VERSION_LABEL}.zip"
+
+          echo "Uploading to S3..."
+          aws s3 cp deploy.zip s3://${S3_BUCKET}/${S3_KEY}
+
+          echo "s3_key=${S3_KEY}" >> $GITHUB_OUTPUT
+          echo "version_label=${VERSION_LABEL}" >> $GITHUB_OUTPUT
+
+      - name: Create application version
+        run: |
+          aws elasticbeanstalk create-application-version \
+            --application-name ${{ secrets.RAG_EB_APPLICATION_NAME }} \
+            --version-label ${{ steps.s3_upload.outputs.version_label }} \
+            --source-bundle S3Bucket="${{ secrets.RAG_S3_BUCKET }}",S3Key="${{ steps.s3_upload.outputs.s3_key }}" \
+            --description "Deployed from GitHub Actions on ${{ steps.time.outputs.timestamp }}"
+
+      - name: Deploy to Elastic Beanstalk
+        run: |
+          echo "🚀 Deploying to Elastic Beanstalk..."
+          aws elasticbeanstalk update-environment \
+            --application-name ${{ secrets.RAG_EB_APPLICATION_NAME }} \
+            --environment-name ${{ secrets.RAG_EB_ENVIRONMENT_NAME }} \
+            --version-label ${{ steps.s3_upload.outputs.version_label }}
+
+      - name: Wait for deployment
+        run: |
+          echo "⏳ Waiting for deployment to complete..."
+          aws elasticbeanstalk wait environment-updated \
+            --application-name ${{ secrets.RAG_EB_APPLICATION_NAME }} \
+            --environment-names ${{ secrets.RAG_EB_ENVIRONMENT_NAME }}
+          echo "✅ Deployment completed"
+
+      - name: Get environment info
+        id: env_info
+        run: |
+          CNAME=$(aws elasticbeanstalk describe-environments \
+            --application-name ${{ secrets.RAG_EB_APPLICATION_NAME }} \
+            --environment-names ${{ secrets.RAG_EB_ENVIRONMENT_NAME }} \
+            --query "Environments[0].CNAME" \
+            --output text)
+
+          echo "cname=${CNAME}" >> $GITHUB_OUTPUT
+
+      - name: Health check
+        run: |
+          CNAME="${{ steps.env_info.outputs.cname }}"
+          echo "🏥 Running health check on http://${CNAME}/api/v1/health"
+
+          for i in {1..10}; do
+            echo "Attempt $i/10..."
+            RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://${CNAME}/api/v1/health || echo "000")
+            
+            if [ "$RESPONSE" = "200" ]; then
+              echo "✅ Health check passed!"
+              exit 0
+            fi
+            
+            echo "⚠️ Health check failed (HTTP $RESPONSE), retrying in 10s..."
+            sleep 10
+          done
+
+          echo "❌ Health check failed after 10 attempts"
+          exit 1
+
+      - name: Deployment summary
+        if: success()
+        run: |
+          echo "========================================="
+          echo "🎉 Deployment Successful!"
+          echo "========================================="
+          echo "Version: ${{ steps.s3_upload.outputs.version_label }}"
+          echo "URL: http://${{ steps.env_info.outputs.cname }}"
+          echo "========================================="
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f deploy.zip
+          echo "✅ Cleanup complete"
