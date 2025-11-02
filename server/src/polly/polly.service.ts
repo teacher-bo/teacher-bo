@@ -108,9 +108,13 @@ export class PollyService {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&apos;');
 
-    let body = escapeXml(text);
+    const isSSML = text.includes('</speak>');
+    if (isSSML){
+      return text;
+    }
+
+    const body = escapeXml(text);
     const langAttr = opts?.language ? ` xml:lang="${opts.language}"` : '';
-    // return `<speak${langAttr}> <prosody rate="x-fast"> ${body}</prosody> </speak>`;
     return `<speak${langAttr}> ${body} </speak>`;
   }
 
