@@ -14,7 +14,7 @@ import { useStreamingAudioService } from "../../hooks/useStreamingAudioService";
 import { useOpenAI } from "../../hooks/useOpenAI";
 import { usePollyTTS } from "../../hooks/usePollyTTS";
 import { useWakeWord } from "../../hooks/useWakeWord";
-import { TestScheduler } from "rxjs/testing";
+import { Button } from "@/components/Button";
 
 interface Message {
   id: string;
@@ -25,10 +25,28 @@ interface Message {
 }
 
 export default function HomeScreen() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [chatSessionId] = useState<string>(
-    () => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: "welcome_1",
+      isUser: false,
+      textItems: [
+        {
+          resultId: "welcome_text",
+          text: "안녕하세요! 보쌤입니다. 보드게임에 대해 무엇이든 물어보세요!",
+        },
+      ],
+      timestamp: new Date(),
+    },
+  ]);
+
+  const generateChatSessionId = () =>
+    `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const [chatSessionId, setChatSessionId] = useState<string>(
+    generateChatSessionId()
   );
+  const resetChatSession = () => {
+    setChatSessionId(generateChatSessionId());
+  };
 
   const currentlyAddingMessageRef = useRef(false);
 
@@ -40,12 +58,15 @@ export default function HomeScreen() {
     sampleRate,
     bufferSize,
     sttDatas,
+    resetSttDatas,
+    reconnectSocket,
   } = useStreamingAudioService();
 
   const { chatWithAI, loading: aiLoading, error: aiError } = useOpenAI();
 
   const {
     speakText,
+    stopSpeaking,
     isPlaying: isSpeaking,
     isLoading: ttsLoading,
     error: ttsError,
@@ -78,9 +99,9 @@ export default function HomeScreen() {
             <prosody pitch="+8%" rate="fast"> 무엇을 도와드릴까요? </prosody>
           </speak>
         `;
-        
+
         await speakText(text);
-        
+
         console.log("Speech completed, starting recording...");
         setRecordingFlag(true);
       } catch (err) {
@@ -98,13 +119,13 @@ export default function HomeScreen() {
 
   // recordingFlag가 true로 변경되면 녹음 시작
   useEffect(() => {
-    console.log("RecordingFlag - 현재 상태:", { 
-      isRecording, 
-      isSpeaking, 
-      aiLoading, 
+    console.log("RecordingFlag - 현재 상태:", {
+      isRecording,
+      isSpeaking,
+      aiLoading,
       ttsLoading,
       isBusy,
-      recordingFlag
+      recordingFlag,
     });
     if (recordingFlag) {
       setIsBusy(true);
@@ -133,15 +154,15 @@ export default function HomeScreen() {
     setMessages((prev) => {
       const latestData = sttDatas[sttDatas.length - 1];
       const lastMessage = prev[prev.length - 1];
-      
+
       console.log("현재 상태:", {
         currentlyAddingMessage: currentlyAddingMessageRef.current,
         lastMessageIsUser: lastMessage?.isUser,
         lastMessageId: lastMessage?.id,
-        newDataId: latestData.resultId
+        newDataId: latestData.resultId,
       });
 
-     if (currentlyAddingMessageRef.current && lastMessage?.isUser) {
+      if (currentlyAddingMessageRef.current && lastMessage?.isUser) {
         const exists = lastMessage.textItems.find(
           (item) => item.resultId === latestData.resultId
         );
@@ -160,20 +181,22 @@ export default function HomeScreen() {
           ];
         }
 
-        return prev.map((m) => (m.id === lastMessage.id ? { ...m, textItems } : m));
-    }
+        return prev.map((m) =>
+          m.id === lastMessage.id ? { ...m, textItems } : m
+        );
+      }
 
-    currentlyAddingMessageRef.current = true;
+      currentlyAddingMessageRef.current = true;
 
-    const newMessage: Message = {
-      id: latestData.resultId,
-      textItems: [{ resultId: latestData.resultId, text: latestData.text }],
-      isUser: true,
-      timestamp: new Date(latestData.timestamp),
-    };
+      const newMessage: Message = {
+        id: latestData.resultId,
+        textItems: [{ resultId: latestData.resultId, text: latestData.text }],
+        isUser: true,
+        timestamp: new Date(latestData.timestamp),
+      };
 
-    console.log("생성된 메시지:", newMessage);
-    return [...prev, newMessage];
+      console.log("생성된 메시지:", newMessage);
+      return [...prev, newMessage];
     });
   }, [sttDatas]);
 
@@ -201,7 +224,10 @@ export default function HomeScreen() {
         return;
       }
 
-      console.log("Recording stopped, current message state:", currentlyAddingMessageRef.current);
+      console.log(
+        "Recording stopped, current message state:",
+        currentlyAddingMessageRef.current
+      );
       await stopAudioRecording();
 
       const lastMessage = messages[messages.length - 1];
@@ -245,7 +271,7 @@ export default function HomeScreen() {
             setMessages((prev) => [...prev, botMessage]);
 
             try {
-              await new Promise(resolve => setTimeout(resolve, 500));
+              await new Promise((resolve) => setTimeout(resolve, 500));
               await speakText(aiResponse.message);
               console.log("TTS 완료, 다음 녹음 준비");
               setRecordingFlag(true);
@@ -282,12 +308,12 @@ export default function HomeScreen() {
   };
 
   const toggleRecording = () => {
-    console.log("Toggle recording - 현재 상태:", { 
-      isRecording, 
-      isSpeaking, 
-      aiLoading, 
+    console.log("Toggle recording - 현재 상태:", {
+      isRecording,
+      isSpeaking,
+      aiLoading,
       ttsLoading,
-      isBusy
+      isBusy,
     });
 
     // 시스템이 바쁜 상태면 무시
@@ -307,6 +333,15 @@ export default function HomeScreen() {
 
   const handleSourceClick = (source: string) => {
     Alert.alert("출처 정보", source, [{ text: "확인", style: "default" }]);
+  };
+
+  const resetContext = () => {
+    stopSpeaking();
+    stopRecording();
+    setMessages([]);
+    resetChatSession();
+    resetSttDatas();
+    reconnectSocket();
   };
 
   return (
@@ -441,8 +476,14 @@ export default function HomeScreen() {
               </View>
             )}
 
-            {/* 하단 녹음 버튼 */}
             <View style={styles.recordingButtonContainer}>
+              <Button
+                style={{ visibility: "hidden" }}
+                onPress={resetContext}
+                children="다른 게임 질문하기"
+                variant="secondary"
+                size="sm"
+              />
               <TouchableOpacity
                 style={[
                   styles.micButton,
@@ -459,6 +500,12 @@ export default function HomeScreen() {
                   color="white"
                 />
               </TouchableOpacity>
+              <Button
+                onPress={resetContext}
+                children="다른 게임 질문하기"
+                variant="secondary"
+                size="sm"
+              />
             </View>
           </>
         )}
@@ -582,6 +629,9 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   recordingButtonContainer: {
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "center",
     alignItems: "center",
     paddingVertical: 20,
   },

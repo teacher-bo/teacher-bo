@@ -14,6 +14,8 @@ interface UseAudioServiceReturn {
   sampleRate: number;
   bufferSize: number;
   sttDatas: STTData[];
+  resetSttDatas: () => void;
+  reconnectSocket: () => void;
 }
 
 interface STTData {
@@ -51,6 +53,7 @@ export const useStreamingAudioService = (): UseAudioServiceReturn => {
     stopTranscriptionStream,
     connect: connectSocket,
     disconnect: disconnectSocket,
+    reconnect: reconnectSocket,
   } = useSocket({
     socketUrl: process.env.EXPO_PUBLIC_API_URL!,
     onTranscriptionResult: (data) => {
@@ -203,5 +206,7 @@ export const useStreamingAudioService = (): UseAudioServiceReturn => {
     sampleRate,
     bufferSize,
     sttDatas,
+    resetSttDatas: () => setSttDatas([]),
+    reconnectSocket,
   };
 };

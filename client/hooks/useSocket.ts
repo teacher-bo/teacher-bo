@@ -18,6 +18,7 @@ interface UseSocketReturn {
   stopTranscriptionStream: (sessionId?: string) => void;
   connect: () => void;
   disconnect: () => void;
+  reconnect: () => void;
 }
 
 export const useSocket = ({
@@ -106,6 +107,16 @@ export const useSocket = ({
     }
   }, []);
 
+  // Socket.IO 재연결 (socketId 재발급)
+  const reconnect = useCallback(() => {
+    console.log("🔄 Reconnecting to Socket.IO...");
+    disconnect();
+    // Disconnect 후 약간의 딜레이를 두고 재연결
+    setTimeout(() => {
+      connect();
+    }, 100);
+  }, [disconnect, connect]);
+
   // Transcription stream 시작
   const startTranscriptionStream = useCallback(() => {
     if (socketRef.current && socketRef.current.connected) {
@@ -173,5 +184,6 @@ export const useSocket = ({
     stopTranscriptionStream,
     connect,
     disconnect,
+    reconnect,
   };
 };

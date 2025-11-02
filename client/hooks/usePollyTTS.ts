@@ -77,7 +77,10 @@ export const usePollyTTS = () => {
    */
   const synthesizeAudio = useCallback(
     async (text: string, options?: Partial<SynthesizeSpeechInput>) => {
-      console.log("Synthesizing speech with Polly:", text.substring(0, 50) + "...");
+      console.log(
+        "Synthesizing speech with Polly:",
+        text.substring(0, 50) + "..."
+      );
 
       const { data } = await synthesizeSpeechMutation({
         variables: {
@@ -187,7 +190,7 @@ export const usePollyTTS = () => {
       } finally {
         setIsLoading(false);
       }
-      console.log("speakText completed")
+      console.log("speakText completed");
     },
     [synthesizeAudio, cleanupCurrentSound, waitForPlaybackComplete]
   );
@@ -196,9 +199,7 @@ export const usePollyTTS = () => {
     try {
       if (currentSound) {
         await currentSound.stopAsync();
-        await currentSound.unloadAsync();
-        setCurrentSound(null);
-        setIsPlaying(false);
+        await cleanupCurrentSound();
       }
     } catch (err) {
       console.error("Error stopping speech:", err);
