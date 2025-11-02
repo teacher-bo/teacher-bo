@@ -9,12 +9,12 @@
  */
 
 const tintColorLight = "#0a7ea4";
-const tintColorDark = "#fff";
+const tintColorDark = "#fafaf8";
 
 export const Colors = {
   light: {
     text: "#11181C",
-    background: "#fff",
+    background: "#fafaf8",
     tint: tintColorLight,
     icon: "#687076",
     tabIconDefault: "#687076",
@@ -30,7 +30,7 @@ export const Colors = {
     accent: "#8B5CF6",
     muted: "#F3F4F6",
     // Board game specific colors
-    gameCard: "#FFFFFF",
+    gameCard: "#fafaf8",
     gameCardShadow: "#00000010",
     rating: "#FFC107",
     complexity: "#FF6B6B",
@@ -38,7 +38,7 @@ export const Colors = {
     playerCount: "#45B7D1",
   },
   dark: {
-    text: "#ECEDEE",
+    text: "#fafaf8",
     background: "#151718",
     tint: tintColorDark,
     icon: "#9BA1A6",
@@ -51,7 +51,7 @@ export const Colors = {
     success: "#34D399",
     info: "#60A5FA",
     primary: "#60A5FA",
-    secondary: "#9CA3AF",
+    secondary: "#595959",
     accent: "#A78BFA",
     muted: "#374151",
     // Board game specific colors
@@ -64,7 +64,7 @@ export const Colors = {
   },
   common: {
     // Colors that don't change between themes
-    white: "#FFFFFF",
+    white: "#fafaf8",
     black: "#000000",
     transparent: "transparent",
     // Social colors

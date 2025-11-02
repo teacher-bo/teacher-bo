@@ -485,7 +485,7 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 20,
     fontWeight: "600",
-    color: "#fff",
+    color: "#fafaf8",
     textAlign: "center",
     marginBottom: 8,
   },
@@ -517,10 +517,10 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   userMessageText: {
-    color: "#fff",
+    color: "#fafaf8",
   },
   botMessageText: {
-    color: "#fff",
+    color: "#fafaf8",
   },
   sourceText: {
     color: "#ccc",

@@ -51,7 +51,7 @@ const config: ExpoConfig = {
     versionCode: 1,
     adaptiveIcon: {
       foregroundImage: "./assets/adaptive-icon.png",
-      backgroundColor: "#ffffff",
+      backgroundColor: "#fafaf8",
     },
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
@@ -129,7 +129,7 @@ const config: ExpoConfig = {
         image: "./assets/icons/splash-icon-light.png",
         imageWidth: 200,
         resizeMode: "contain",
-        backgroundColor: "#FFFFFF",
+        backgroundColor: "#fafaf8",
       },
     ],
   ],
