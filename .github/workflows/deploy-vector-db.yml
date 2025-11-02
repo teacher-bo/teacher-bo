@@ -1,0 +1,48 @@
+name: Deploy Vector DB to S3
+
+on:
+  push:
+    paths:
+      - "rag-vector-db-generator/**"
+      - ".github/workflows/deploy-vector-db.yml"
+
+jobs:
+  deploy-vector-db:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        working-directory: rag-vector-db-generator
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create .env file from secrets
+        working-directory: rag-vector-db-generator
+        run: |
+          echo "${{ secrets.VECTOR_DB_GEN_ENV }}" > .env
+
+      - name: Run embed_and_store.py to generate chroma_db
+        working-directory: rag-vector-db-generator
+        run: |
+          python embed_and_store.py
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-access-key-id: ${{ secrets.VECTOR_DB_GEN_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.VECTOR_DB_GEN_AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.VECTOR_DB_GEN_AWS_REGION }}
+
+      - name: Upload chroma_db to S3
+        working-directory: rag-vector-db-generator
+        run: |
+          aws s3 sync chroma_db s3://${{ secrets.VECTOR_DB_GEN_S3_BUCKET_NAME }}/chroma_db --delete
