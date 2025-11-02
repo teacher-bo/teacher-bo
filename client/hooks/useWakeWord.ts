@@ -225,9 +225,9 @@ export const useWakeWord = (
                 confidence
               );
 
-              if (confidence >= (options.sensitivity || 0.8)) {
-                checkForWakeWords(transcript);
-              }
+              // if (confidence >= (options.sensitivity || 0.8)) {
+              checkForWakeWords(transcript);
+              // }
             }
           }
         };

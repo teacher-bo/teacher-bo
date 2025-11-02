@@ -135,18 +135,11 @@ export default function HomeScreen() {
 
   // 컴포넌트 마운트 시 wakeword 리스닝 시작
   useEffect(() => {
-    if (isWakeWordSupported) {
-      startWakeWordListening();
-      console.log("Wake word listening started");
-    } else {
-      console.warn("Wake word detection not supported on this platform");
-    }
-
+    startWakeWordListening();
     return () => {
       stopWakeWordListening();
-      console.log("Wake word listening stopped");
     };
-  }, [isWakeWordSupported, startWakeWordListening, stopWakeWordListening]);
+  }, []);
 
   useEffect(() => {
     if (sttDatas.length === 0) return;
@@ -418,11 +411,7 @@ export default function HomeScreen() {
               "보쌤"을 불러보세요!
             </ThemedText>
             <ThemedText style={styles.emptySubText}>
-              {`보드게임 규칙, 전략, 추천 등 무엇이든 물어보세요!${
-                isWakeWordSupported
-                  ? '\n음성으로 "보쌤"을 불러서 시작할 수도 있어요!'
-                  : ""
-              }`}
+              {`보드게임 규칙, 전략, 추천 등 무엇이든 물어보세요!\n음성으로 "보쌤"을 불러서 시작할 수도 있어요!`}
             </ThemedText>
           </View>
         ) : (
