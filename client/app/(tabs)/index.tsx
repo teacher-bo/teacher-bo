@@ -73,11 +73,12 @@ export default function HomeScreen() {
       try {
         const text = `
           <speak xml:lang="ko-KR">
-            <prosody rate="medium" volume="loud"> 안녕하세요!</prosody>
+            <prosody pitch="+2%" volume="x-loud"> 안녕하세요! </prosody>
             <break time="100ms"/>
-            무엇을 도와드릴까요?
+            <prosody pitch="+8%" rate="fast"> 무엇을 도와드릴까요? </prosody>
           </speak>
         `;
+        
         await speakText(text);
         // await speakText("안녕하세요. 무엇을 도와드릴까요?");
         
@@ -99,6 +100,7 @@ export default function HomeScreen() {
   useEffect(() => {
     if (toggleRecordingFlag) {
       startRecording();
+      setToggleRecordingFlag(false);
     }
   }, [toggleRecordingFlag]);
   // 컴포넌트 마운트 시 wakeword 리스닝 시작
