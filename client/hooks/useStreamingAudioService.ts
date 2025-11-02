@@ -9,7 +9,7 @@ import { useSocket } from "./useSocket";
 interface UseAudioServiceReturn {
   isRecording: boolean;
   startRecording: () => Promise<void>;
-  stopRecording: () => Promise<void>;
+  stopRecording: (sendToServer?: boolean) => Promise<void>;
   audioLevel: number;
   sampleRate: number;
   bufferSize: number;
@@ -169,24 +169,29 @@ export const useStreamingAudioService = (): UseAudioServiceReturn => {
   }, [setupAudioDataHandler, socketId, startTranscriptionStream]);
 
   // 녹음 중지
-  const stopRecording = useCallback(async () => {
-    try {
-      // transcription stream 먼저 중지
-      stopTranscriptionStream();
+  const stopRecording = useCallback(
+    async (sendToServer = true) => {
+      try {
+        if (sendToServer) {
+          // transcription stream 먼저 중지
+          stopTranscriptionStream();
+        }
 
-      await stopRecordingNative();
-      setIsRecordingState(false);
+        await stopRecordingNative();
+        setIsRecordingState(false);
 
-      audioChunksRef.current = [];
-      webAudioChunksRef.current = new Float32Array(0);
-      setAudioLevel(0);
+        audioChunksRef.current = [];
+        webAudioChunksRef.current = new Float32Array(0);
+        setAudioLevel(0);
 
-      console.log("Recording stopped");
-    } catch (error) {
-      console.error("Failed to stop recording:", error);
-      throw error;
-    }
-  }, [stopTranscriptionStream]);
+        console.log("Recording stopped");
+      } catch (error) {
+        console.error("Failed to stop recording:", error);
+        throw error;
+      }
+    },
+    [stopTranscriptionStream]
+  );
 
   useEffect(() => {
     connectSocket();

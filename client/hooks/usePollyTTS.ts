@@ -69,6 +69,8 @@ export const usePollyTTS = () => {
       }
       setCurrentSound(null);
       setIsPlaying(false);
+      setIsLoading(false);
+      setError(null);
     }
   }, [currentSound]);
 

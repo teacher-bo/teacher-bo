@@ -341,12 +341,13 @@ export default function HomeScreen() {
   };
 
   const resetContext = () => {
+    reconnectSocket();
     stopSpeaking();
-    stopRecording();
+    stopAudioRecording(false);
     setMessages([]);
     resetChatSession();
     resetSttDatas();
-    reconnectSocket();
+    setIsBusy(false);
   };
 
   return (
