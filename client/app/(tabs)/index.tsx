@@ -22,6 +22,7 @@ interface Message {
   textItems: { resultId: string; text: string }[];
   timestamp: Date;
   source?: string;
+  isDummy?: boolean; // Add isDummy property
 }
 
 export default function HomeScreen() {
@@ -118,16 +119,17 @@ export default function HomeScreen() {
 
   // recordingFlag가 true로 변경되면 녹음 시작
   useEffect(() => {
-    console.log("RecordingFlag - 현재 상태:", {
-      isRecording,
-      isSpeaking,
-      aiLoading,
-      ttsLoading,
-      isBusy,
-      recordingFlag,
-    });
+    // console.log("RecordingFlag - 현재 상태:", {
+    //   isRecording,
+    //   isSpeaking,
+    //   aiLoading,
+    //   ttsLoading,
+    //   isBusy,
+    //   recordingFlag,
+    // });
     if (recordingFlag) {
       setIsBusy(true);
+      addDummyMessage();
       startRecording();
       setRecordingFlag(false);
     }
@@ -143,16 +145,16 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (sttDatas.length === 0) return;
-    setMessages((prev) => {
-      const latestData = sttDatas[sttDatas.length - 1];
-      const lastMessage = prev[prev.length - 1];
+    if(!isBusy || !isRecording) return;
 
-      console.log("현재 상태:", {
-        currentlyAddingMessage: currentlyAddingMessageRef.current,
-        lastMessageIsUser: lastMessage?.isUser,
-        lastMessageId: lastMessage?.id,
-        newDataId: latestData.resultId,
-      });
+    setMessages((prev) => {
+      const lastMessage = prev[prev.length - 1];
+      const latestData = sttDatas[sttDatas.length - 1];
+
+      // console.log("현재 상태:", {
+      //   latestData: latestData.text,
+      //   latestMessage: lastMessage.textItems.map((item) => item.text).join(" "),
+      // });
 
       if (currentlyAddingMessageRef.current && lastMessage?.isUser) {
         const exists = lastMessage.textItems.find(
@@ -182,7 +184,10 @@ export default function HomeScreen() {
 
       const newMessage: Message = {
         id: latestData.resultId,
-        textItems: [{ resultId: latestData.resultId, text: latestData.text }],
+        textItems: [{ 
+          resultId: lastMessage?.isDummy ? "-1" : latestData.resultId,
+          text: lastMessage?.isDummy ? "" : latestData.text 
+        }],
         isUser: true,
         timestamp: new Date(latestData.timestamp),
       };
@@ -202,11 +207,27 @@ export default function HomeScreen() {
       currentlyAddingMessageRef.current = false;
 
       await startAudioRecording();
-      console.log("Recording started");
+      console.log("Recording started", isBusy, isRecording);
     } catch (err) {
       console.error("Failed to start recording", err);
       setIsBusy(false);
     }
+  };
+
+  /**
+   * Add dummy message to ensure proper message flow
+   */
+  const addDummyMessage = () => {
+    const dummyMessage: Message = {
+      id: `dummy_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      isUser: false,
+      textItems: [{ resultId: `dummy_${Date.now()}`, text: "" }],
+      timestamp: new Date(),
+      isDummy: true, // Mark as dummy message
+    };
+    
+    setMessages((prev) => [...prev, dummyMessage]);
+    console.log("Added dummy message:", dummyMessage.id);
   };
 
   const stopRecording = async () => {
@@ -300,14 +321,6 @@ export default function HomeScreen() {
   };
 
   const toggleRecording = () => {
-    console.log("Toggle recording - 현재 상태:", {
-      isRecording,
-      isSpeaking,
-      aiLoading,
-      ttsLoading,
-      isBusy,
-    });
-
     // 시스템이 바쁜 상태면 무시
     if (isSpeaking || aiLoading || ttsLoading) {
       console.log("시스템 바쁨, 요청 무시");
@@ -338,7 +351,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* 메시지 영역 */}
+      {/* Messages area */}
       <ScrollView
         contentContainerStyle={{
           justifyContent: "center",
@@ -381,7 +394,7 @@ export default function HomeScreen() {
                 </Text>
               )}
 
-              {/* 오디오 레벨 표시 */}
+              {/* Audio level indicator */}
               {audioLevel > 0 && (
                 <View style={styles.audioLevelContainer}>
                   <Text style={styles.audioLevelText}>
@@ -398,7 +411,7 @@ export default function HomeScreen() {
                 </View>
               )}
 
-              {/* 스트리밍 정보 표시 */}
+              {/* Streaming info display */}
               {sampleRate > 0 && (
                 <View style={styles.streamingInfoContainer}>
                   <Text style={styles.streamingInfoText}>
@@ -416,43 +429,54 @@ export default function HomeScreen() {
           </View>
         ) : (
           <>
-            {messages.map((message) => (
-              <View
-                key={message.id}
-                style={[
-                  styles.messageBubble,
-                  message.isUser ? styles.userMessage : styles.botMessage,
-                ]}
-              >
-                <Text
+            {messages
+              .filter((message) => {
+                // Filter out dummy messages and messages with empty text
+                if (message.isDummy) return false;
+                
+                const messageText = message.textItems
+                  .map((item) => item.text)
+                  .join(" ")
+                  .trim();
+                return messageText.length > 0; // Only show messages with actual content
+              })
+              .map((message) => (
+                <View
+                  key={message.id}
                   style={[
-                    styles.messageText,
-                    message.isUser
-                      ? styles.userMessageText
-                      : styles.botMessageText,
+                    styles.messageBubble,
+                    message.isUser ? styles.userMessage : styles.botMessage,
                   ]}
                 >
-                  {message.textItems.map((item) => item.text).join(" ")}
-                </Text>
-                {!message.isUser && message.source && (
-                  <TouchableOpacity
-                    style={styles.sourceContainer}
-                    onPress={() => handleSourceClick(message.source!)}
-                    activeOpacity={0.7}
+                  <Text
+                    style={[
+                      styles.messageText,
+                      message.isUser
+                        ? styles.userMessageText
+                        : styles.botMessageText,
+                    ]}
                   >
-                    <Ionicons
-                      name="document-text-outline"
-                      size={12}
-                      color="#aaa"
-                      style={styles.sourceIcon}
-                    />
-                    <Text style={styles.sourceText}>{message.source}</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            ))}
+                    {message.textItems.map((item) => item.text).join(" ")}
+                  </Text>
+                  {!message.isUser && message.source && (
+                    <TouchableOpacity
+                      style={styles.sourceContainer}
+                      onPress={() => handleSourceClick(message.source!)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons
+                        name="document-text-outline"
+                        size={12}
+                        color="#aaa"
+                        style={styles.sourceIcon}
+                      />
+                      <Text style={styles.sourceText}>{message.source}</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))}
 
-            {/* AI 로딩 상태 표시 */}
+            {/* AI loading state display */}
             {(aiLoading || ttsLoading) && (
               <View style={styles.loadingContainer}>
                 <Ionicons name="ellipsis-horizontal" size={24} color="#888" />
