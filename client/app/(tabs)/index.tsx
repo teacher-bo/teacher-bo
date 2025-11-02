@@ -80,7 +80,6 @@ export default function HomeScreen() {
    */
   const {
     isListening: isWakeWordListening,
-    isSupported: isWakeWordSupported,
     startListening: startWakeWordListening,
     stopListening: stopWakeWordListening,
     error: wakeWordError,

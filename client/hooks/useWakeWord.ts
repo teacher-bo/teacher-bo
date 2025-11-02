@@ -22,7 +22,6 @@ interface UseWakeWordOptions {
 
 interface UseWakeWordReturn {
   isListening: boolean;
-  isSupported: boolean;
   startListening: () => Promise<void>;
   stopListening: () => Promise<void>;
   error: string | null;
@@ -99,7 +98,6 @@ export const useWakeWord = (
 ): UseWakeWordReturn => {
   const [isListening, setIsListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isSupported, setIsSupported] = useState(false);
 
   // Web Speech Recognition 인스턴스 저장
   const recognitionRef = useRef<SpeechRecognition | null>(null);
@@ -119,19 +117,6 @@ export const useWakeWord = (
     },
     [options.wakeWords, onWakeWordDetected]
   );
-
-  // 플랫폼별 지원 여부 확인
-  useEffect(() => {
-    if (Platform.OS === "web") {
-      // Web Speech Recognition API 지원 확인
-      const isWebSupported =
-        "SpeechRecognition" in window || "webkitSpeechRecognition" in window;
-      setIsSupported(isWebSupported);
-    } else {
-      // React Native Voice 지원 확인
-      setIsSupported(Voice !== null);
-    }
-  }, []);
 
   // React Native Voice 설정 (iOS/Android)
   useEffect(() => {
@@ -185,7 +170,7 @@ export const useWakeWord = (
 
   // Web Speech Recognition 설정
   useEffect(() => {
-    if (Platform.OS === "web" && isSupported) {
+    if (Platform.OS === "web") {
       const SpeechRecognitionAPI =
         window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -260,17 +245,18 @@ export const useWakeWord = (
         };
       }
     }
-  }, [isSupported, checkForWakeWords]);
+  }, [checkForWakeWords]);
 
   const startListening = useCallback(async (): Promise<void> => {
     try {
       setError(null);
 
       if (Platform.OS === "web") {
-        if (recognitionRef.current && isSupported) {
+        if (recognitionRef.current) {
           recognitionRef.current.start();
         } else {
-          throw new Error("Speech recognition not supported");
+          console.warn("Speech recognition not supported. Maybe not yet?");
+          setTimeout(() => startListening(), 500);
         }
       } else {
         if (Voice) {
@@ -284,7 +270,7 @@ export const useWakeWord = (
       setError(error.message || "Failed to start voice recognition");
       setIsListening(false);
     }
-  }, [isSupported, options.language]);
+  }, [options.language]);
 
   const stopListening = useCallback(async (): Promise<void> => {
     try {
@@ -305,7 +291,6 @@ export const useWakeWord = (
 
   return {
     isListening,
-    isSupported,
     startListening,
     stopListening,
     error,
