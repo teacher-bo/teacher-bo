@@ -48,7 +48,7 @@ UPSTAGE_API_KEY=your_upstage_api_key
 
 # LangChain (optional)
 LANGCHAIN_TRACING_V2=true
-LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
+LANGCHAIN_ENDPOINT=endpoint
 LANGCHAIN_API_KEY=your_langchain_api_key
 LANGCHAIN_PROJECT=teacher-bo
 
