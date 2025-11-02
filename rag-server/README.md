@@ -3,6 +3,8 @@
 ## Quick Start
 
 ```bash
+python -m venv .venv            # 가상 환경 생성
+
 source venv/bin/activate        # 가상 환경 ON
 
 pip install -r requirements.txt # 패키지 설치
