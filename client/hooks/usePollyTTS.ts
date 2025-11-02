@@ -84,7 +84,7 @@ export const usePollyTTS = () => {
           input: {
             text,
             voiceId: "Seoyeon",
-            engine: "neural",
+            engine: "standard",
             outputFormat: "mp3",
             sampleRate: "22050",
             languageCode: "ko-KR",
