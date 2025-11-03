@@ -8,15 +8,15 @@ export class ChatInput {
   @IsNotEmpty()
   message: string;
 
-  @Field(() => [String], { nullable: true })
-  @IsArray()
-  @IsOptional()
-  context?: string[];
-
   @Field(() => String, { nullable: true })
   @IsString()
   @IsOptional()
   sessionId?: string;
+
+  @Field(() => String, { nullable: true, defaultValue: 'sabotage' })
+  @IsString()
+  @IsOptional()
+  gameKey?: string;
 }
 
 @InputType()

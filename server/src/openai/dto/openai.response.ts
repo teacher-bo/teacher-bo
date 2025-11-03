@@ -8,14 +8,20 @@ export class ChatResponse {
   @Field(() => String, { nullable: true })
   sessionId?: string;
 
-  @Field(() => [String], { nullable: true })
-  sources?: string[];
-
   @Field(() => String)
   timestamp: string;
 
   @Field(() => String, { nullable: true })
-  reasoning?: string;
+  gameTitle?: string;
+
+  @Field(() => String, { nullable: true })
+  answerType?: string;
+
+  @Field(() => String, { nullable: true })
+  source?: string;
+
+  @Field(() => String, { nullable: true })
+  page?: string;
 }
 
 @ObjectType()

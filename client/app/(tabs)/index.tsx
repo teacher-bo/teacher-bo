@@ -250,10 +250,6 @@ export default function HomeScreen() {
           const aiResponse = await chatWithAI({
             message: userText,
             sessionId: chatSessionId,
-            context: messages
-              .slice(-4)
-              .map((msg) => msg.textItems.map((item) => item.text).join(" "))
-              .filter(Boolean),
           });
 
           if (aiResponse) {

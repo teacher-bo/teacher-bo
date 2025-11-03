@@ -17,38 +17,14 @@ export class OpenAIResolver {
     try {
       this.logger.log(`Chat request for session: ${input.sessionId}`);
 
-      // 세션 컨텍스트 가져오기
-      const session = this.chatSessions.get(input.sessionId);
-      if (session) {
-        // 최근 메시지들을 컨텍스트로 사용
-        const recentMessages = session.messages
-          .slice(-5) // 최근 5개 메시지만
-          .map((msg) => `${msg.role}: ${msg.content}`);
-        input.context = recentMessages;
-      }
-
       const response = await this.openaiService.chat(input);
 
-      // 세션에 메시지 저장
+      // Store message in session
       this.updateChatSession(input.sessionId, input.message, response.message);
 
       return response;
     } catch (error) {
       this.logger.error('Error in chat mutation:', error);
-      throw error;
-    }
-  }
-
-  @Mutation(() => FileSearchResponse)
-  async searchFiles(
-    @Args('input') input: FileSearchInput,
-  ): Promise<FileSearchResponse> {
-    try {
-      this.logger.log(`File search request: ${input.query}`);
-
-      return await this.openaiService.searchWithFiles(input);
-    } catch (error) {
-      this.logger.error('Error in file search mutation:', error);
       throw error;
     }
   }
@@ -87,33 +63,19 @@ export class OpenAIResolver {
   async deleteChatSession(
     @Args('sessionId') sessionId: string,
   ): Promise<boolean> {
-    const deleted = this.chatSessions.delete(sessionId);
-    if (deleted) {
-      this.logger.log(`Deleted chat session: ${sessionId}`);
-    }
-    return deleted;
-  }
-
-  @Mutation(() => String)
-  async createVectorStore(
-    @Args('name') name: string,
-    @Args('fileIds', { type: () => [String] }) fileIds: string[],
-  ): Promise<string> {
     try {
-      return await this.openaiService.createVectorStore(name, fileIds);
-    } catch (error) {
-      this.logger.error('Error creating vector store:', error);
-      throw error;
-    }
-  }
+      // Delete from RAG server
+      await this.openaiService.deleteSession(sessionId);
 
-  @Mutation(() => String)
-  async uploadFile(@Args('filePath') filePath: string): Promise<string> {
-    try {
-      return await this.openaiService.uploadFile(filePath);
+      // Delete from local cache
+      const deleted = this.chatSessions.delete(sessionId);
+      if (deleted) {
+        this.logger.log(`Deleted chat session: ${sessionId}`);
+      }
+      return deleted;
     } catch (error) {
-      this.logger.error('Error uploading file:', error);
-      throw error;
+      this.logger.error('Error deleting session:', error);
+      return false;
     }
   }
 

@@ -130,17 +130,10 @@ export const CHAT_WITH_AI = gql`
       message
       sessionId
       timestamp
-    }
-  }
-`;
-
-export const SEARCH_FILES = gql`
-  mutation SearchFiles($input: FileSearchInput!) {
-    searchFiles(input: $input) {
-      answer
-      query
-      sources
-      timestamp
+      gameTitle
+      answerType
+      source
+      page
     }
   }
 `;
