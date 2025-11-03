@@ -67,7 +67,7 @@ export const Breathe = ({
 
   return (
     <Canvas style={{ width, height }}>
-      <Fill color="rgb(36,43,56)" />
+      <Fill color="#242b38" />
       <Group origin={center} transform={transform} blendMode="screen">
         <BlurMask style="solid" blur={40} />
         {new Array(6).fill(0).map((_, index) => {
