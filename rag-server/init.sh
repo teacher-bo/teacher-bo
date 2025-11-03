@@ -76,22 +76,52 @@ else
     # 4. Check rag-vector-db-generator .env
     echo "[5/9] rag-vector-db-generator .env 파일 확인 중..."
     VECTOR_DB_DIR="$RAG_SERVER_DIR/../rag-vector-db-generator"
-    
+
+    # Extract API keys from rag-server .env (do not echo secrets)
+    UPSTAGE_API_KEY=$(grep "^UPSTAGE_API_KEY=" "$RAG_SERVER_DIR/.env" | cut -d'=' -f2-)
+    OPENAI_API_KEY=$(grep "^OPENAI_API_KEY=" "$RAG_SERVER_DIR/.env" | cut -d'=' -f2-)
+
     if [ ! -f "$VECTOR_DB_DIR/.env" ]; then
         echo -e "${YELLOW}⚠ rag-vector-db-generator .env 파일이 없습니다. 생성 중...${NC}"
-        
-        # Extract UPSTAGE_API_KEY from rag-server .env
-        UPSTAGE_API_KEY=$(grep "^UPSTAGE_API_KEY=" "$RAG_SERVER_DIR/.env" | cut -d'=' -f2-)
-        
+
+        # UPSTAGE_API_KEY is required for OCR flow
         if [ -z "$UPSTAGE_API_KEY" ]; then
             echo -e "${RED}❌ rag-server .env에서 UPSTAGE_API_KEY를 찾을 수 없습니다.${NC}"
             exit 1
         fi
-        
-        echo "UPSTAGE_API_KEY=$UPSTAGE_API_KEY" > "$VECTOR_DB_DIR/.env"
+
+        # Create new .env with required/optional keys
+        {
+            echo "UPSTAGE_API_KEY=$UPSTAGE_API_KEY"
+            if [ -n "$OPENAI_API_KEY" ]; then
+                echo "OPENAI_API_KEY=$OPENAI_API_KEY"
+            else
+                echo -e "${YELLOW}⚠ rag-server .env에서 OPENAI_API_KEY를 찾을 수 없습니다. (선택)${NC}" 1>&2
+            fi
+        } > "$VECTOR_DB_DIR/.env"
+
         echo -e "${GREEN}✓ rag-vector-db-generator .env 파일 생성 완료${NC}"
     else
         echo -e "${GREEN}✓ rag-vector-db-generator .env 파일 확인 완료${NC}"
+        # Ensure required/optional keys exist in existing .env
+        if ! grep -q "^UPSTAGE_API_KEY=" "$VECTOR_DB_DIR/.env"; then
+            if [ -n "$UPSTAGE_API_KEY" ]; then
+                echo "UPSTAGE_API_KEY=$UPSTAGE_API_KEY" >> "$VECTOR_DB_DIR/.env"
+                echo -e "${GREEN}✓ UPSTAGE_API_KEY 추가 완료${NC}"
+            else
+                echo -e "${RED}❌ rag-server .env에서 UPSTAGE_API_KEY를 찾을 수 없습니다.${NC}"
+                exit 1
+            fi
+        fi
+
+        if ! grep -q "^OPENAI_API_KEY=" "$VECTOR_DB_DIR/.env"; then
+            if [ -n "$OPENAI_API_KEY" ]; then
+                echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> "$VECTOR_DB_DIR/.env"
+                echo -e "${GREEN}✓ OPENAI_API_KEY 추가 완료${NC}"
+            else
+                echo -e "${YELLOW}⚠ rag-server .env에서 OPENAI_API_KEY를 찾을 수 없습니다. (선택)${NC}"
+            fi
+        fi
     fi
     echo ""
     
