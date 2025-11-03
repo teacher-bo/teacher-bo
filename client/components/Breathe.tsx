@@ -1,4 +1,5 @@
 import { useMemo, useEffect } from "react";
+import { Platform } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
 import {
   useSharedValue,
@@ -7,6 +8,7 @@ import {
   cancelAnimation,
   withRepeat,
   withTiming,
+  withSpring,
 } from "react-native-reanimated";
 import {
   BlurMask,
@@ -22,26 +24,27 @@ import {
 const c1 = "#61bea2";
 const c2 = "#529ca0";
 
-interface RingProps {
+interface TRingProps {
   index: number;
   progress: SharedValue<number>;
+  scale: SharedValue<number>;
   width: number;
   height: number;
 }
 
-const Ring = ({ index, progress, width, height }: RingProps) => {
+const Ring = ({ index, progress, scale, width, height }: TRingProps) => {
   const R = width / 8;
   const center = useMemo(() => vec(width / 2, height / 2), [height, width]);
 
   const theta = (index * (2 * Math.PI)) / 6;
   const transform = useDerivedValue(() => {
     const { x, y } = polar2Canvas(
-      { theta, radius: progress.value * R },
+      { theta, radius: 2.8 * R * scale.value },
       { x: 0, y: 0 }
     );
-    const scale = mix(progress.value, 0.3, 1);
-    return [{ translateX: x }, { translateY: y }, { scale }];
-  }, [progress]);
+    const ringScale = mix(progress.value * scale.value, 0.8, 1);
+    return [{ translateX: x }, { translateY: y }, { scale: ringScale }];
+  }, [progress, scale]);
 
   return (
     <Group origin={center} transform={transform}>
@@ -60,10 +63,85 @@ export const Breathe = ({
   const center = useMemo(() => vec(width / 2, height / 2), [height, width]);
 
   const progress = useLoop({ duration: 2400 });
+  const pitchScale = useSharedValue(1);
+
   const transform = useDerivedValue(
     () => [{ rotate: mix(progress.value, -Math.PI, 0) }],
     [progress]
   );
+
+  // Setup audio pitch detection for web only
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+
+    let audioContext: AudioContext | null = null;
+    let analyser: AnalyserNode | null = null;
+    let microphone: MediaStreamAudioSourceNode | null = null;
+    let rafId: number | null = null;
+
+    const initAudio = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+        });
+        audioContext = new AudioContext();
+        analyser = audioContext.createAnalyser();
+        microphone = audioContext.createMediaStreamSource(stream);
+
+        analyser.fftSize = 2048;
+        analyser.smoothingTimeConstant = 0.8;
+        microphone.connect(analyser);
+
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+
+        // Analyze pitch and update scale
+        const detectPitch = () => {
+          analyser!.getByteFrequencyData(dataArray);
+
+          // Calculate average frequency intensity
+          let sum = 0;
+          let maxFreq = 0;
+          let maxIndex = 0;
+
+          for (let i = 0; i < bufferLength; i++) {
+            sum += dataArray[i];
+            if (dataArray[i] > maxFreq) {
+              maxFreq = dataArray[i];
+              maxIndex = i;
+            }
+          }
+
+          const average = sum / bufferLength;
+
+          // Convert to pitch scale (0 to 1)
+          // Higher frequency = larger scale
+          const normalizedPitch = Math.min(average / 128, 1);
+          const targetScale = normalizedPitch;
+
+          // Smooth animation using spring
+          pitchScale.value = withSpring(targetScale, {
+            damping: 15,
+            stiffness: 150,
+          });
+
+          rafId = requestAnimationFrame(detectPitch);
+        };
+
+        detectPitch();
+      } catch (error) {
+        console.error("Error accessing microphone:", error);
+      }
+    };
+
+    initAudio();
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      if (microphone) microphone.disconnect();
+      if (audioContext) audioContext.close();
+    };
+  }, [pitchScale]);
 
   return (
     <Canvas style={{ width, height }}>
@@ -76,6 +154,7 @@ export const Breathe = ({
               key={index}
               index={index}
               progress={progress}
+              scale={pitchScale}
               width={width}
               height={height}
             />
