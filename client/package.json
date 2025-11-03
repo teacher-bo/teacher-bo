@@ -30,6 +30,7 @@
     "@expo/vector-icons": "^15.0.2",
     "@react-native-community/netinfo": "11.4.1",
     "@react-native-voice/voice": "^3.2.4",
+    "@shopify/react-native-skia": "2.2.12",
     "@siteed/expo-audio-studio": "^2.18.1",
     "@tanstack/react-query": "^5.89.0",
     "axios": "^1.12.2",
