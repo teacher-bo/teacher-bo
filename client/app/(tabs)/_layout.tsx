@@ -28,42 +28,6 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="games"
-        options={{
-          title: "Games",
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon
-              name={focused ? "game-controller" : "game-controller-outline"}
-              color={color}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="rules"
-        options={{
-          title: "Rules",
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon
-              name={focused ? "book" : "book-outline"}
-              color={color}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: "Profile",
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon
-              name={focused ? "person" : "person-outline"}
-              color={color}
-            />
-          ),
-        }}
-      />
     </Tabs>
   );
 }
