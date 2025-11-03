@@ -38,8 +38,11 @@ const Ring = ({ index, progress, scale, width, height }: TRingProps) => {
 
   const theta = (index * (2 * Math.PI)) / 6;
   const transform = useDerivedValue(() => {
+    const baseExpansion = 0.17; // Minimum separation
+    const expansionFactor = baseExpansion + progress.value * scale.value * 0.7;
+
     const { x, y } = polar2Canvas(
-      { theta, radius: 2.8 * R * scale.value },
+      { theta, radius: 2.8 * R * expansionFactor },
       { x: 0, y: 0 }
     );
     const ringScale = mix(progress.value * scale.value, 0.8, 1);
