@@ -3,6 +3,7 @@
 ## Quick Start
 
 ```bash
+sh init.sh                      # 통합 관리 시스템 (안내 절차 따라서 자동세팅 가능)
 # 사전에 .env 파일 주입
 # `rag-vector-db-generator` 폴더에서 chroma_db 생성해서 주입
 # 이후 아래 절차 따라 진행
