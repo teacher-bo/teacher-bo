@@ -16,4 +16,9 @@ AVAILABLE_GAMES: dict[str, GameConfig] = {
         "db_path": "./chroma_db/sabotage",
         "collection": "sabotage_rulebook"
     },
+    "rummikub": {
+        "name": "루미큐브",
+        "db_path": "./chroma_db/rummikub",
+        "collection": "rummikub_rulebook"
+    },
 }
