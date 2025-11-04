@@ -27,7 +27,7 @@ class SileroVAD:
         # VAD state management
         self.speech_started = False
         self.silence_frames = 0
-        self.silence_threshold = 12  # Number of silent frames to consider speech ended
+        self.silence_threshold = 100  # Number of silent frames to consider speech ended
 
         # Audio buffer management
         self.audio_buffer = np.array([], dtype=np.float32)
@@ -57,53 +57,63 @@ class SileroVAD:
             # Convert bytes to numpy array (int16)
             audio_np = np.frombuffer(audio_data, dtype=np.int16)
 
+            if audio_np.size == 0:
+                logger.debug("Received empty audio chunk, ignoring.")
+                return False, False, 0.0
+
             # Normalize to [-1, 1]
             audio_float = audio_np.astype(np.float32) / 32768.0
 
             # Add to buffer
             self.audio_buffer = np.concatenate([self.audio_buffer, audio_float])
 
-            # Process only if we have enough samples
-            if len(self.audio_buffer) < self.chunk_size:
+            has_speech = False
+            speech_ended = False
+            speech_prob = 0.0
+            processed = False
+
+            # Process every full chunk available to stay in sync with the stream
+            while len(self.audio_buffer) >= self.chunk_size:
+                processed = True
+                audio_chunk = self.audio_buffer[: self.chunk_size]
+                self.audio_buffer = self.audio_buffer[self.chunk_size :]
+
+                audio_tensor = torch.from_numpy(audio_chunk)
+
+                with torch.no_grad():
+                    speech_prob = float(self.model(audio_tensor, self.sample_rate))
+
+                has_speech = speech_prob > 0.5
+
+                if has_speech:
+                    if not self.speech_started:
+                        self.speech_started = True
+                        logger.info("Speech started")
+                    self.silence_frames = 0
+                else:
+                    if self.speech_started:
+                        self.silence_frames += 1
+                        logger.debug(
+                            "Silence frames: %s / %s",
+                            self.silence_frames,
+                            self.silence_threshold,
+                        )
+                        if self.silence_frames >= self.silence_threshold:
+                            speech_ended = True
+                            self.speech_started = False
+                            logger.info(
+                                "Speech ended, silence frames: %s",
+                                self.silence_frames,
+                            )
+                            self.silence_frames = 0
+
+            if not processed:
                 logger.debug(
-                    f"Buffer too small: {len(self.audio_buffer)} < {self.chunk_size}, accumulating..."
+                    "Buffer too small: %s < %s, accumulating...",
+                    len(self.audio_buffer),
+                    self.chunk_size,
                 )
                 return False, False, 0.0
-
-            # Take exactly chunk_size samples
-            audio_chunk = self.audio_buffer[: self.chunk_size]
-
-            # Keep remaining samples in buffer
-            self.audio_buffer = self.audio_buffer[self.chunk_size :]
-
-            # Convert to torch tensor
-            audio_tensor = torch.from_numpy(audio_chunk)
-
-            # Get VAD prediction
-            speech_prob = self.model(audio_tensor, self.sample_rate).item()
-
-            # Determine voice activity (threshold: 0.5)
-            print(speech_prob)
-            has_speech = speech_prob > 0.5
-            speech_ended = False
-
-            # Track speech state
-            if has_speech:
-                if not self.speech_started:
-                    self.speech_started = True
-                    logger.info("Speech started")
-                self.silence_frames = 0
-            else:
-                if self.speech_started:
-                    self.silence_frames += 1
-                    print(
-                        f"Silence frames: {self.silence_frames}, Threshold: {self.silence_threshold}"
-                    )
-                    if self.silence_frames >= self.silence_threshold:
-                        speech_ended = True
-                        self.speech_started = False
-                        self.silence_frames = 0
-                        logger.info("Speech ended")
 
             return has_speech, speech_ended, speech_prob
 
