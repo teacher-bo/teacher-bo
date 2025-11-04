@@ -42,6 +42,15 @@ export class AudioGateway implements OnGatewayConnection, OnGatewayDisconnect {
       // 콘솔에도 로그 출력
       this.logger.log(`STT Result [${data.clientId}]: ${data.text}`);
     });
+
+    eventEmitter.on('vadEnded', (data) => {
+      this.logger.log(`🎙️ VAD ended event received:`, data);
+      this.emitToClient(data.clientId, 'vadEnded', {
+        timestamp: data.timestamp,
+        confidence: data.confidence,
+        message: '음성 활동이 종료되었습니다.',
+      });
+    });
   }
 
   handleConnection(client: Socket) {

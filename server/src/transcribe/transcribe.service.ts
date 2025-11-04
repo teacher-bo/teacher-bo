@@ -7,12 +7,15 @@ import {
   MediaEncoding,
 } from '@aws-sdk/client-transcribe-streaming';
 import { EventEmitter } from 'events';
+import * as FormData from 'form-data';
+import axios from 'axios';
 
 @Injectable()
 export class TranscribeService {
   private readonly logger = new Logger(TranscribeService.name);
   private readonly transcribeStreamingClient: TranscribeStreamingClient;
   private readonly eventEmitter = new EventEmitter();
+  private readonly vadServiceUrl = 'http://localhost:1003';
 
   // 세션별 오디오 스트림 관리
   private audioBuffers = new Map<string, Buffer[]>();
@@ -169,8 +172,53 @@ export class TranscribeService {
       if (buffers) {
         buffers.push(audioData);
       }
+
+      // VAD 서비스로 오디오 전송
+      this.sendAudioToVAD(clientId, audioData);
     } else {
       this.logger.warn(`No active transcription for client: ${clientId}`);
+    }
+  }
+
+  // VAD 서비스로 오디오 전송
+  private async sendAudioToVAD(
+    clientId: string,
+    audioData: Buffer,
+  ): Promise<void> {
+    try {
+      const formData = new FormData();
+      formData.append('audio', audioData, {
+        filename: 'audio.pcm',
+        contentType: 'application/octet-stream',
+      });
+
+      const response = await axios.post(
+        `${this.vadServiceUrl}/detect`,
+        formData,
+        {
+          headers: formData.getHeaders(),
+          timeout: 5000,
+        },
+      );
+
+      const { has_speech, speech_ended, confidence } = response.data;
+
+      this.logger.log(
+        `VAD Result for ${clientId} - Speech: ${has_speech}, Ended: ${speech_ended}, Confidence: ${confidence}`,
+      );
+
+      // speech_ended가 true이면 클라이언트에게 이벤트 전송
+      if (speech_ended) {
+        this.eventEmitter.emit('vadEnded', {
+          clientId,
+          timestamp: new Date().toISOString(),
+          confidence,
+        });
+        this.logger.log(`🎙️ VAD ended event emitted for client: ${clientId}`);
+      }
+    } catch (error) {
+      // VAD 서비스 오류는 로그만 남기고 계속 진행
+      this.logger.warn(`VAD service error: ${error.message}`);
     }
   }
 
