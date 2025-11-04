@@ -218,12 +218,7 @@ export const useWakeWord = (
               const transcript = result[0].transcript;
               const confidence = result[0].confidence;
 
-              console.log(
-                "Web Speech: Result:",
-                transcript,
-                "Confidence:",
-                confidence
-              );
+              console.debug("Web Speech: Result:", transcript);
 
               // if (confidence >= (options.sensitivity || 0.8)) {
               checkForWakeWords(transcript);
