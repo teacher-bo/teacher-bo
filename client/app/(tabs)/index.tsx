@@ -98,7 +98,7 @@ export default function HomeScreen() {
       }
     },
     {
-      wakeWords: ["보쌤", "보셈", "보샘"],
+      wakeWords: ["보쌤", "보셈", "보샘", "알리야"],
       language: "ko-KR",
       sensitivity: 0.6,
       continuous: true,
@@ -133,7 +133,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (sttDatas.length === 0) return;
-    if(!isBusy || !isRecording) return;
+    if (!isBusy || !isRecording) return;
 
     setMessages((prev) => {
       const lastMessage = prev[prev.length - 1];
@@ -172,10 +172,12 @@ export default function HomeScreen() {
 
       const newMessage: Message = {
         id: latestData.resultId,
-        textItems: [{ 
-          resultId: lastMessage?.isDummy ? "-1" : latestData.resultId,
-          text: lastMessage?.isDummy ? "" : latestData.text 
-        }],
+        textItems: [
+          {
+            resultId: lastMessage?.isDummy ? "-1" : latestData.resultId,
+            text: lastMessage?.isDummy ? "" : latestData.text,
+          },
+        ],
         isUser: true,
         timestamp: new Date(latestData.timestamp),
       };
@@ -213,7 +215,7 @@ export default function HomeScreen() {
       timestamp: new Date(),
       isDummy: true, // Mark as dummy message
     };
-    
+
     setMessages((prev) => [...prev, dummyMessage]);
     console.log("Added dummy message:", dummyMessage.id);
   };
@@ -418,7 +420,7 @@ export default function HomeScreen() {
               .filter((message) => {
                 // Filter out dummy messages and messages with empty text
                 if (message.isDummy) return false;
-                
+
                 const messageText = message.textItems
                   .map((item) => item.text)
                   .join(" ")
