@@ -49,6 +49,7 @@ export default function HomeScreen() {
     sttDatas,
     resetSttDatas,
     reconnectSocket,
+    onVadEnded,
   } = useStreamingAudioService();
 
   const { chatWithAI, loading: aiLoading, error: aiError } = useOpenAI();
@@ -305,6 +306,19 @@ export default function HomeScreen() {
       setIsBusy(false);
     }
   };
+
+  // VAD ended 이벤트 핸들러 등록
+  useEffect(() => {
+    if (onVadEnded) {
+      onVadEnded((data) => {
+        console.log("🎙️ VAD ended in HomeScreen:", data);
+        if (isRecording && isBusy) {
+          console.log("Stopping recording due to VAD ended event");
+          stopRecording();
+        }
+      });
+    }
+  }, [onVadEnded, isRecording, isBusy, stopRecording]);
 
   const toggleRecording = () => {
     // 시스템이 바쁜 상태면 무시

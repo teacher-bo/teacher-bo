@@ -16,6 +16,7 @@ interface UseAudioServiceReturn {
   sttDatas: STTData[];
   resetSttDatas: () => void;
   reconnectSocket: () => void;
+  onVadEnded?: (callback: (data: any) => void) => void;
 }
 
 interface STTData {
@@ -33,6 +34,7 @@ export const useStreamingAudioService = (): UseAudioServiceReturn => {
   const [bufferSize, setBufferSize] = useState(0);
 
   const [sttDatas, setSttDatas] = useState<STTData[]>([]);
+  const vadEndedCallbackRef = useRef<((data: any) => void) | null>(null);
 
   const onAudioDataRef = useRef<(event: AudioDataEvent) => Promise<void>>(
     async () => {}
@@ -68,6 +70,10 @@ export const useStreamingAudioService = (): UseAudioServiceReturn => {
     },
     onTranscriptionError: (error) => {
       console.error("Transcription error handled:", error);
+    },
+    onVadEnded: (data) => {
+      console.log("🎙️ VAD ended in useStreamingAudioService:", data);
+      vadEndedCallbackRef.current?.(data);
     },
     onConnect: (s) => setSocketId(s.id!),
   });
@@ -203,6 +209,11 @@ export const useStreamingAudioService = (): UseAudioServiceReturn => {
     };
   }, []);
 
+  // VAD ended 콜백 등록 함수
+  const onVadEnded = useCallback((callback: (data: any) => void) => {
+    vadEndedCallbackRef.current = callback;
+  }, []);
+
   return {
     isRecording: isRecordingState,
     startRecording,
@@ -213,5 +224,6 @@ export const useStreamingAudioService = (): UseAudioServiceReturn => {
     sttDatas,
     resetSttDatas: () => setSttDatas([]),
     reconnectSocket,
+    onVadEnded,
   };
 };

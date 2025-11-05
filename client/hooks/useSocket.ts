@@ -5,6 +5,7 @@ interface UseSocketOptions {
   socketUrl: string;
   onTranscriptionResult?: (data: any) => void;
   onTranscriptionError?: (error: any) => void;
+  onVadEnded?: (data: any) => void;
   onConnect?: (socket: Socket) => void;
   onDisconnect?: (socket: Socket) => void;
   onConnectError?: (error: any) => void;
@@ -25,6 +26,7 @@ export const useSocket = ({
   socketUrl,
   onTranscriptionResult,
   onTranscriptionError,
+  onVadEnded,
   onConnect,
   onDisconnect,
   onConnectError,
@@ -68,6 +70,11 @@ export const useSocket = ({
       onConnect?.(socket);
     });
 
+    socket.on("vadEnded", (data) => {
+      console.log("🎙️ VAD ended event received:", data);
+      onVadEnded?.(data);
+    });
+
     socket.on("transcriptionResult", (data: any) => {
       onTranscriptionResult?.(data);
     });
@@ -93,6 +100,7 @@ export const useSocket = ({
     onConnect,
     onTranscriptionResult,
     onTranscriptionError,
+    onVadEnded,
     onDisconnect,
     onConnectError,
   ]);
@@ -129,25 +137,25 @@ export const useSocket = ({
 
   // Transcription stream 중지
   // Todo : 여기 체크해야함(임시)
-  const stopTranscriptionStream = useCallback(
-    (sessionId?: string) => {
-      if (!socketRef.current) {
-        console.error("Socket not available");
-        return;
-      }
+  const stopTranscriptionStream = useCallback((sessionId?: string) => {
+    if (!socketRef.current) {
+      console.error("Socket not available");
+      return;
+    }
 
-      console.log("🛑 Stopping transcription stream", sessionId ? `for session: ${sessionId}` : "(no session)");
+    console.log(
+      "🛑 Stopping transcription stream",
+      sessionId ? `for session: ${sessionId}` : "(no session)"
+    );
 
-      // Safe payload construction
-      const payload: { sessionId?: string } = {};
-      if (sessionId) {
-        payload.sessionId = sessionId;
-      }
+    // Safe payload construction
+    const payload: { sessionId?: string } = {};
+    if (sessionId) {
+      payload.sessionId = sessionId;
+    }
 
-      socketRef.current.emit("stopTranscriptionStream", payload);
-    },
-    []
-  );
+    socketRef.current.emit("stopTranscriptionStream", payload);
+  }, []);
 
   // 오디오 청크 전송
   const sendAudioChunk = useCallback(
