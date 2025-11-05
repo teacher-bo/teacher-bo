@@ -62,8 +62,16 @@ export default function HomeScreen() {
     error: ttsError,
   } = usePollyTTS();
 
-  const [recordingFlag, setRecordingFlag] = useState(false);
-  const [isBusy, setIsBusy] = useState(false);
+  // State machine for conversation flow
+  type ConversationState =
+    | "IDLE" // Waiting for wake word
+    | "GREETING" // Playing greeting message
+    | "LISTENING" // Recording user speech
+    | "PROCESSING" // AI is processing the query
+    | "SPEAKING"; // Playing AI response
+
+  const [conversationState, setConversationState] =
+    useState<ConversationState>("IDLE");
 
   /**
    * Wake word 감지 및 처리 로직
@@ -75,10 +83,10 @@ export default function HomeScreen() {
     error: wakeWordError,
   } = useWakeWord(
     async () => {
-      if (isBusy) return;
+      if (conversationState !== "IDLE") return;
 
       console.log("Wake word detected!");
-      setIsBusy(true);
+      setConversationState("GREETING");
 
       try {
         const text = `
@@ -92,10 +100,10 @@ export default function HomeScreen() {
         await speakText(text);
 
         console.log("Speech completed, starting recording...");
-        setRecordingFlag(true);
+        setConversationState("LISTENING");
       } catch (err) {
         console.error("Greeting TTS failed", err);
-        setIsBusy(false);
+        setConversationState("IDLE");
       }
     },
     {
@@ -106,23 +114,13 @@ export default function HomeScreen() {
     }
   );
 
-  // recordingFlag가 true로 변경되면 녹음 시작
+  // State가 LISTENING으로 변경되면 녹음 시작
   useEffect(() => {
-    // console.log("RecordingFlag - 현재 상태:", {
-    //   isRecording,
-    //   isSpeaking,
-    //   aiLoading,
-    //   ttsLoading,
-    //   isBusy,
-    //   recordingFlag,
-    // });
-    if (recordingFlag) {
-      setIsBusy(true);
+    if (conversationState === "LISTENING" && !isRecording) {
       addDummyMessage();
       startRecording();
-      setRecordingFlag(false);
     }
-  }, [recordingFlag]);
+  }, [conversationState, isRecording]);
 
   // 컴포넌트 마운트 시 wakeword 리스닝 시작
   useEffect(() => {
@@ -134,7 +132,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (sttDatas.length === 0) return;
-    if (!isBusy || !isRecording) return;
+    if (conversationState !== "LISTENING" || !isRecording) return;
 
     setMessages((prev) => {
       const lastMessage = prev[prev.length - 1];
@@ -190,18 +188,18 @@ export default function HomeScreen() {
 
   const startRecording = async () => {
     try {
-      if (isRecording || isSpeaking || aiLoading || ttsLoading) {
-        console.log("Recording already in progress or system busy");
+      if (conversationState !== "LISTENING") {
+        console.log("Not in LISTENING state");
         return;
       }
 
       currentlyAddingMessageRef.current = false;
 
       await startAudioRecording();
-      console.log("Recording started", isBusy, isRecording);
+      console.log("Recording started", conversationState, isRecording);
     } catch (err) {
       console.error("Failed to start recording", err);
-      setIsBusy(false);
+      setConversationState("IDLE");
     }
   };
 
@@ -223,8 +221,8 @@ export default function HomeScreen() {
 
   const stopRecording = async () => {
     try {
-      if (!isBusy) {
-        console.log("Not currently recording");
+      if (conversationState !== "LISTENING") {
+        console.log("Not currently in LISTENING state");
         return;
       }
 
@@ -232,6 +230,7 @@ export default function HomeScreen() {
         "Recording stopped, current message state:",
         currentlyAddingMessageRef.current
       );
+      setConversationState("PROCESSING");
       await stopAudioRecording();
 
       const lastMessage = messages[messages.length - 1];
@@ -271,10 +270,11 @@ export default function HomeScreen() {
             setMessages((prev) => [...prev, botMessage]);
 
             try {
+              setConversationState("SPEAKING");
               await new Promise((resolve) => setTimeout(resolve, 500));
               await speakText(aiResponse.message);
               console.log("TTS 완료, 다음 녹음 준비");
-              setRecordingFlag(true);
+              setConversationState("LISTENING");
               return;
             } catch (err) {
               console.error("TTS 재생 중 오류:", err);
@@ -301,10 +301,14 @@ export default function HomeScreen() {
       console.error("Failed to stop recording", err);
       Alert.alert("오류", "음성 처리 중 오류가 발생했습니다.");
     } finally {
-      console.log("stopRecording end, reset flags");
+      console.log(
+        "stopRecording end, reset flags. Current conversationState:",
+        conversationState
+      );
       currentlyAddingMessageRef.current = false;
-      setIsBusy(false);
     }
+
+    setConversationState("IDLE");
   };
 
   // VAD ended 이벤트 핸들러 등록
@@ -312,27 +316,31 @@ export default function HomeScreen() {
     if (onVadEnded) {
       onVadEnded((data) => {
         console.log("🎙️ VAD ended in HomeScreen:", data);
-        if (isRecording && isBusy) {
+        if (conversationState === "LISTENING" && isRecording) {
           console.log("Stopping recording due to VAD ended event");
           stopRecording();
         }
       });
     }
-  }, [onVadEnded, isRecording, isBusy, stopRecording]);
+  }, [onVadEnded, isRecording, conversationState, stopRecording]);
 
   const toggleRecording = () => {
-    // 시스템이 바쁜 상태면 무시
-    if (isSpeaking || aiLoading || ttsLoading) {
-      console.log("시스템 바쁨, 요청 무시");
+    // IDLE 상태가 아니면 무시
+    if (
+      conversationState === "PROCESSING" ||
+      conversationState === "SPEAKING" ||
+      conversationState === "GREETING"
+    ) {
+      console.log(`현재 상태: ${conversationState}, 요청 무시`);
       return;
     }
 
-    if (isRecording) {
+    if (conversationState === "LISTENING" && isRecording) {
       console.log("녹음 중지 요청");
       stopRecording();
-    } else {
+    } else if (conversationState === "IDLE") {
       console.log("녹음 시작 요청");
-      setRecordingFlag(true);
+      setConversationState("LISTENING");
     }
   };
 
@@ -347,7 +355,7 @@ export default function HomeScreen() {
     setMessages([]);
     resetChatSession();
     resetSttDatas();
-    setIsBusy(false);
+    setConversationState("IDLE");
   };
 
   return (
@@ -377,20 +385,16 @@ export default function HomeScreen() {
                 />
               </TouchableOpacity>
 
-              {(isRecording ||
-                aiLoading ||
-                ttsLoading ||
-                isSpeaking ||
-                isWakeWordListening) && (
+              {conversationState !== "IDLE" && (
                 <Text style={styles.micStatusText}>
-                  {isRecording
+                  {conversationState === "GREETING"
+                    ? "인사하는 중..."
+                    : conversationState === "LISTENING"
                     ? "듣는 중..."
-                    : aiLoading
+                    : conversationState === "PROCESSING"
                     ? "AI 처리 중..."
-                    : ttsLoading
-                    ? "음성 합성 중..."
-                    : isSpeaking
-                    ? "음성 재생 중..."
+                    : conversationState === "SPEAKING"
+                    ? "답변하는 중..."
                     : ""}
                 </Text>
               )}
@@ -478,37 +482,38 @@ export default function HomeScreen() {
               ))}
 
             {/* AI loading state display */}
-            {(aiLoading || ttsLoading) && (
+            {(conversationState === "PROCESSING" ||
+              conversationState === "SPEAKING") && (
               <View style={styles.loadingContainer}>
                 <Ionicons name="ellipsis-horizontal" size={24} color="#888" />
                 <Text style={styles.loadingText}>
-                  {aiLoading
+                  {conversationState === "PROCESSING"
                     ? "AI가 답변을 생성하고 있습니다..."
-                    : "음성을 합성하고 있습니다..."}
+                    : "답변을 말하고 있습니다..."}
                 </Text>
               </View>
             )}
 
             <View style={styles.recordingButtonContainer}>
-              <Button
-                style={{ visibility: "hidden" }}
-                onPress={resetContext}
-                children="다른 게임 질문하기"
-                variant="secondary"
-                size="sm"
-              />
               <TouchableOpacity
                 style={[
                   styles.micButton,
-                  isRecording && styles.micButtonRecording,
-                  (isSpeaking || aiLoading || ttsLoading) &&
+                  conversationState === "LISTENING" &&
+                    styles.micButtonRecording,
+                  (conversationState === "PROCESSING" ||
+                    conversationState === "SPEAKING" ||
+                    conversationState === "GREETING") &&
                     styles.micButtonDisabled,
                 ]}
                 onPress={toggleRecording}
-                disabled={isSpeaking || aiLoading || ttsLoading}
+                disabled={
+                  conversationState === "PROCESSING" ||
+                  conversationState === "SPEAKING" ||
+                  conversationState === "GREETING"
+                }
               >
                 <Ionicons
-                  name={isRecording ? "stop" : "mic"}
+                  name={conversationState === "LISTENING" ? "stop" : "mic"}
                   size={32}
                   color="white"
                 />
@@ -642,11 +647,10 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   recordingButtonContainer: {
-    flexDirection: "row",
     gap: 12,
     justifyContent: "center",
     alignItems: "center",
-    paddingVertical: 20,
+    paddingVertical: 40,
   },
   audioLevelContainer: {
     marginTop: 12,
