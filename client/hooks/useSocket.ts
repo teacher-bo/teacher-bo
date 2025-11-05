@@ -15,7 +15,6 @@ interface UseSocketReturn {
   socket: Socket | null;
   isConnected: boolean;
   sendAudioChunk: (audioData: string, soundLevel: number) => void;
-  startTranscriptionStream: () => void;
   stopTranscriptionStream: (sessionId?: string) => void;
   connect: () => void;
   disconnect: () => void;
@@ -125,18 +124,7 @@ export const useSocket = ({
     }, 100);
   }, [disconnect, connect]);
 
-  // Transcription stream 시작
-  const startTranscriptionStream = useCallback(() => {
-    if (socketRef.current && socketRef.current.connected) {
-      console.log("🎙️ Starting transcription stream");
-      socketRef.current.emit("startTranscriptionStream");
-    } else {
-      console.warn("Socket not connected, cannot start transcription stream");
-    }
-  }, []);
-
   // Transcription stream 중지
-  // Todo : 여기 체크해야함(임시)
   const stopTranscriptionStream = useCallback((sessionId?: string) => {
     if (!socketRef.current) {
       console.error("Socket not available");
@@ -188,7 +176,6 @@ export const useSocket = ({
     socket: socketRef.current,
     isConnected: isConnectedRef.current,
     sendAudioChunk,
-    startTranscriptionStream,
     stopTranscriptionStream,
     connect,
     disconnect,

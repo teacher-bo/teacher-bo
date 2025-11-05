@@ -51,7 +51,6 @@ export const useStreamingAudioService = (): UseAudioServiceReturn => {
 
   const {
     sendAudioChunk: sendAudioChunkViaSocket,
-    startTranscriptionStream,
     stopTranscriptionStream,
     connect: connectSocket,
     disconnect: disconnectSocket,
@@ -161,9 +160,7 @@ export const useStreamingAudioService = (): UseAudioServiceReturn => {
       setBufferSize(1024);
       setIsRecordingState(true);
 
-      // 녹음 시작과 함께 transcription stream 시작
-      startTranscriptionStream();
-
+      // 첫 오디오 청크 전송 시 서버에서 자동으로 transcription stream 시작됨
       console.log("Recording started with Socket.IO streaming", {
         socketId,
         sampleRate: 16000,
@@ -172,7 +169,7 @@ export const useStreamingAudioService = (): UseAudioServiceReturn => {
       console.error("Failed to start recording:", error);
       throw error;
     }
-  }, [setupAudioDataHandler, socketId, startTranscriptionStream]);
+  }, [setupAudioDataHandler, socketId]);
 
   // 녹음 중지
   const stopRecording = useCallback(

@@ -61,19 +61,6 @@ export class AudioGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.logger.log(`Client disconnected: ${client.id}`);
   }
 
-  @SubscribeMessage('startTranscriptionStream')
-  async startTranscriptionStream(@ConnectedSocket() client: Socket) {
-    this.logger.log(`Starting recording for client: ${client.id}`);
-
-    await this.transcribeService.startTranscriptionStream(client.id);
-
-    // 클라이언트에게 녹음 시작 확인 전송
-    client.emit('recordingStarted', {
-      status: 'started',
-      message: '음성 녹음이 시작되었습니다.',
-    });
-  }
-
   @SubscribeMessage('audioChunk')
   async handleAudioChunk(
     @MessageBody() data: AudioChunkData,
@@ -87,6 +74,7 @@ export class AudioGateway implements OnGatewayConnection, OnGatewayDisconnect {
       // base64 디코딩
       const audioBuffer = Buffer.from(data.audioData, 'base64');
 
+      // 첫 오디오 청크 받을 때 자동으로 스트림 시작됨
       this.transcribeService.addAudioChunk(client.id, audioBuffer);
     } catch (error) {
       this.logger.error(`Error processing audio chunk:`, error);
@@ -107,7 +95,8 @@ export class AudioGateway implements OnGatewayConnection, OnGatewayDisconnect {
       `Stopping recording session: ${data.sessionId} for client: ${client.id}`,
     );
 
-    this.transcribeService.stopTranscriptionStream(data.sessionId);
+    // AWS Transcribe 스트림이 완전히 종료될 때까지 대기
+    await this.transcribeService.stopTranscriptionStream(client.id);
 
     // 클라이언트에게 녹음 종료 확인 전송
     client.emit('recordingStopped', {

@@ -34,12 +34,15 @@ export class TranscribeService {
     this.transcribeStreamingClient = new TranscribeStreamingClient(awsConfig);
   }
 
-  // 새로운 transcription 스트림 시작
-  async startTranscriptionStream(clientId: string): Promise<void> {
+  // 새로운 transcription 스트림 시작 (내부에서 자동 호출됨)
+  private async startTranscriptionStream(clientId: string): Promise<void> {
     this.logger.log(`Starting transcription stream for client: ${clientId}`);
 
     if (this.isTranscribing.get(clientId)) {
-      throw new Error(`Transcription already active for client: ${clientId}`);
+      this.logger.warn(
+        `Transcription already active for client: ${clientId}, skipping`,
+      );
+      return;
     }
 
     this.isTranscribing.set(clientId, true);
@@ -161,8 +164,20 @@ export class TranscribeService {
     }
   }
 
-  // 오디오 청크 추가
+  // 오디오 청크 추가 (첫 청크 받을 때 자동으로 스트림 시작)
   addAudioChunk(clientId: string, audioData: Buffer): void {
+    // 스트림이 아직 시작되지 않았다면 시작
+    if (!this.isTranscribing.get(clientId)) {
+      this.logger.log(
+        `🎬 First audio chunk received, auto-starting transcription stream for client: ${clientId}`,
+      );
+      this.startTranscriptionStream(clientId).catch((error) => {
+        this.logger.error(
+          `Failed to auto-start transcription stream: ${error.message}`,
+        );
+      });
+    }
+
     if (this.isTranscribing.get(clientId)) {
       this.logger.log(
         `Adding audio chunk for client ${clientId}, size: ${audioData.length} bytes`,
@@ -223,14 +238,38 @@ export class TranscribeService {
   }
 
   // transcription 스트림 중지
-  stopTranscriptionStream(clientId: string): void {
+  async stopTranscriptionStream(clientId: string): Promise<void> {
     this.logger.log(`Stopping transcription stream for client: ${clientId}`);
 
+    // 1. 먼저 플래그를 false로 설정 (새로운 청크 수신 중지)
     this.isTranscribing.set(clientId, false);
-    this.audioBuffers.delete(clientId);
 
-    // Promise 정리
+    // 2. 진행 중인 AWS Transcribe Promise가 완료될 때까지 대기
+    const transcribePromise = this.transcribePromises.get(clientId);
+    if (transcribePromise) {
+      try {
+        this.logger.log(
+          `⏳ Waiting for AWS Transcribe stream to finish for client: ${clientId}`,
+        );
+        await transcribePromise;
+        this.logger.log(
+          `✅ AWS Transcribe stream finished for client: ${clientId}`,
+        );
+      } catch (error) {
+        this.logger.warn(
+          `AWS Transcribe stream ended with error for client: ${clientId}`,
+          error.message,
+        );
+      }
+    }
+
+    // 3. 리소스 정리
+    this.audioBuffers.delete(clientId);
     this.transcribePromises.delete(clientId);
+
+    this.logger.log(
+      `🛑 Transcription stream fully stopped for client: ${clientId}`,
+    );
   }
 
   // 활성 세션 확인
