@@ -7,7 +7,7 @@ import packageJson from "./package.json";
 
 dotenvConfig();
 
-const PACKAGE_NAME = "at.leed.teacher-bo";
+const PACKAGE_NAME = "at.leed.teacherbo";
 const buildVersion = packageJson.version;
 const buildNumber = `000${buildVersion.replace(/\./g, "")}`;
 
@@ -16,7 +16,7 @@ const config: ExpoConfig = {
   name: "TeacherBo",
   slug: "teacher-bo",
   version: buildVersion,
-  platforms: ["ios", "web"],
+  platforms: ["ios", "android", "web"],
   orientation: "portrait",
   icon: "./assets/icons/ios-light.png",
   userInterfaceStyle: "automatic",
@@ -50,23 +50,15 @@ const config: ExpoConfig = {
     package: PACKAGE_NAME,
     versionCode: 1,
     adaptiveIcon: {
-      foregroundImage: "./assets/adaptive-icon.png",
+      foregroundImage: "./assets/icons/ios-light.png",
       backgroundColor: "#fafaf8",
     },
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
     permissions: [
-      "android.permission.CAMERA",
       "android.permission.READ_EXTERNAL_STORAGE",
       "android.permission.WRITE_EXTERNAL_STORAGE",
-      "android.permission.INTERNET",
-      "android.permission.ACCESS_NETWORK_STATE",
-      "android.permission.ACCESS_FINE_LOCATION",
-      "android.permission.ACCESS_COARSE_LOCATION",
       "android.permission.RECORD_AUDIO",
-      "android.permission.VIBRATE",
-      "android.permission.RECEIVE_BOOT_COMPLETED",
-      "android.permission.WAKE_LOCK",
     ],
   },
   web: {
@@ -146,4 +138,41 @@ const config: ExpoConfig = {
   },
 };
 
-export default config;
+/* BEGIN: https://github.com/expo/expo/issues/36461#issuecomment-2846152663 */
+const minSdkPatchCode = `
+  ext {
+    buildToolsVersion = findProperty('android.buildToolsVersion') ?: '36.0.0'
+    compileSdkVersion = Integer.parseInt(findProperty('android.compileSdkVersion') ?: '36')
+    targetSdkVersion = Integer.parseInt(findProperty('android.targetSdkVersion') ?: '36')
+    kotlinVersion = '2.0.21'
+  }
+`;
+// kotlinVersion = findProperty('android.kotlinVersion') ?: '2.0.21'
+
+function withMinSdkProjectGradlePatch(config: ExpoConfig) {
+  return withProjectBuildGradle(config, async (config) => {
+    if (config.modResults.contents.includes(minSdkPatchCode)) {
+      return config;
+    }
+
+    const addCode = mergeContents({
+      newSrc: minSdkPatchCode,
+      tag: "minSdkPatchCode",
+      src: config.modResults.contents,
+      anchor: "buildscript {",
+      comment: "//",
+      offset: 1,
+    });
+
+    config.modResults.contents = addCode.contents;
+
+    console.log(
+      "[minSdkProjectGradlePatch] Gradle patch applied successfully!"
+    );
+
+    return config;
+  });
+}
+/* END: https://github.com/expo/expo/issues/36461#issuecomment-2846152663 */
+
+export default withMinSdkProjectGradlePatch(config);
