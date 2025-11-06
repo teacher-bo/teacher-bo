@@ -1,17 +1,10 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Platform } from "react-native";
 
-import V from "@react-native-voice/voice";
-
-// React Native Voice는 네이티브 플랫폼에서만 사용
-let Voice: typeof V | null = null;
-if (Platform.OS !== "web") {
-  try {
-    Voice = require("@react-native-voice/voice").default;
-  } catch (error) {
-    console.warn("React Native Voice not available:", error);
-  }
-}
+import {
+  useSpeechRecognitionEvent,
+  ExpoSpeechRecognitionModule,
+} from "expo-speech-recognition";
 
 interface UseWakeWordOptions {
   wakeWords: string[];
@@ -118,55 +111,40 @@ export const useWakeWord = (
     [options.wakeWords, onWakeWordDetected]
   );
 
-  // React Native Voice 설정 (iOS/Android)
-  useEffect(() => {
-    if (Platform.OS !== "web" && Voice) {
-      Voice.onSpeechStart = () => {
-        console.log("Voice: Speech started");
-        setIsListening(true);
-        setError(null);
-      };
-
-      Voice.onSpeechEnd = () => {
-        console.log("Voice: Speech ended");
-        setIsListening(false);
-      };
-
-      Voice.onSpeechError = (event: any) => {
-        console.error("Voice: Speech error", event);
-        setError(event.error?.message || "Speech recognition error");
-        setIsListening(false);
-      };
-
-      Voice.onSpeechResults = (event: any) => {
-        const results = event.value;
-        console.log(results);
-        if (results && results.length > 0) {
-          const transcript = results[0];
-          console.log("Voice: Speech result:", transcript);
-          checkForWakeWords(transcript);
-        }
-      };
-
-      Voice.onSpeechPartialResults = (event: any) => {
-        const results = event.value;
-        console.log(results);
-        if (results && results.length > 0) {
-          const transcript = results[0];
-          checkForWakeWords(transcript);
-        }
-      };
-
-      Voice.onSpeechVolumeChanged = (event: any) => {
-        // 볼륨 변화 이벤트 (필요시 활용)
-        // console.log("Voice: Volume changed", event.value);
-      };
-
-      return () => {
-        Voice.destroy().then(Voice.removeAllListeners);
-      };
+  // expo-speech-recognition 이벤트 핸들러 (iOS/Android)
+  useSpeechRecognitionEvent("start", () => {
+    if (Platform.OS !== "web") {
+      console.log("Speech: Recognition started");
+      setIsListening(true);
+      setError(null);
     }
-  }, []);
+  });
+
+  useSpeechRecognitionEvent("end", () => {
+    if (Platform.OS !== "web") {
+      console.log("Speech: Recognition ended");
+      setIsListening(false);
+    }
+  });
+
+  useSpeechRecognitionEvent("error", (event) => {
+    if (Platform.OS !== "web") {
+      console.error("Speech: Recognition error", event);
+      setError(event.error || "Speech recognition error");
+      setIsListening(false);
+    }
+  });
+
+  useSpeechRecognitionEvent("result", (event) => {
+    if (Platform.OS !== "web") {
+      const results = event.results;
+      if (results && results.length > 0) {
+        const transcript = results.map((result) => result.transcript).join(" ");
+        console.log("Speech: Result:", transcript);
+        checkForWakeWords(transcript);
+      }
+    }
+  });
 
   // Web Speech Recognition 설정
   useEffect(() => {
@@ -254,18 +232,29 @@ export const useWakeWord = (
           setTimeout(() => startListening(), 500);
         }
       } else {
-        if (Voice) {
-          await Voice.start(options.language || "ko-KR");
-        } else {
-          throw new Error("Voice recognition not available");
+        // expo-speech-recognition for iOS/Android
+        const result =
+          await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+        if (!result.granted) {
+          throw new Error("Speech recognition permission not granted");
         }
+
+        await ExpoSpeechRecognitionModule.start({
+          lang: options.language || "ko-KR",
+          interimResults: true,
+          maxAlternatives: 1,
+          continuous: options.continuous || false,
+          requiresOnDeviceRecognition: false,
+          addsPunctuation: false,
+          contextualStrings: options.wakeWords,
+        });
       }
     } catch (error: any) {
       console.error("Failed to start listening:", error);
       setError(error.message || "Failed to start voice recognition");
       setIsListening(false);
     }
-  }, [options.language]);
+  }, [options.language, options.continuous, options.wakeWords]);
 
   const stopListening = useCallback(async (): Promise<void> => {
     try {
@@ -274,9 +263,7 @@ export const useWakeWord = (
           recognitionRef.current.stop();
         }
       } else {
-        if (Voice) {
-          await Voice.stop();
-        }
+        await ExpoSpeechRecognitionModule.stop();
       }
     } catch (error: any) {
       console.error("Failed to stop listening:", error);
