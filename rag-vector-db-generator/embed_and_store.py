@@ -69,10 +69,10 @@ def process_single_rulebook(game_name: str, file_path: Path):
     
     # 분할 결과 미리보기
     print("\n📋 분할 결과 미리보기 (처음 3개):")
-    for i, split in enumerate(splits[:3]):
+    for i, split in enumerate(splits[:]):
         print(f"\n[청크 {i+1}]")
         print(f"메타데이터: {split.metadata}")
-        print(f"내용: {split.page_content[:150]}...")
+        print(f"내용: {split.page_content[:]}...")
         print("-" * 40)
     
     # 3. 임베딩 모델 설정 (Upstage)
