@@ -117,7 +117,6 @@ export default function HomeScreen() {
   // State가 LISTENING으로 변경되면 녹음 시작
   useEffect(() => {
     if (conversationState === "LISTENING" && !isRecording) {
-      addDummyMessage();
       startRecording();
     }
   }, [conversationState, isRecording]);
@@ -137,11 +136,6 @@ export default function HomeScreen() {
     setMessages((prev) => {
       const lastMessage = prev[prev.length - 1];
       const latestData = sttDatas[sttDatas.length - 1];
-
-      // console.log("현재 상태:", {
-      //   latestData: latestData.text,
-      //   latestMessage: lastMessage.textItems.map((item) => item.text).join(" "),
-      // });
 
       if (currentlyAddingMessageRef.current && lastMessage?.isUser) {
         const exists = lastMessage.textItems.find(
@@ -201,22 +195,6 @@ export default function HomeScreen() {
       console.error("Failed to start recording", err);
       setConversationState("IDLE");
     }
-  };
-
-  /**
-   * Add dummy message to ensure proper message flow
-   */
-  const addDummyMessage = () => {
-    const dummyMessage: Message = {
-      id: `dummy_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      isUser: false,
-      textItems: [{ resultId: `dummy_${Date.now()}`, text: "" }],
-      timestamp: new Date(),
-      isDummy: true, // Mark as dummy message
-    };
-
-    setMessages((prev) => [...prev, dummyMessage]);
-    console.log("Added dummy message:", dummyMessage.id);
   };
 
   const stopRecording = async () => {
