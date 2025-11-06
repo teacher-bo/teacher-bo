@@ -1,0 +1,70 @@
+name: Sync Amazon Transcribe Custom Vocabulary
+
+on:
+  push:
+    paths:
+      - "infra/transcribe/vocabulary-filter.txt"
+      - ".github/workflows/sync-transcribe-vocabulary.yml"
+
+jobs:
+  sync-vocabulary:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-access-key-id: ${{ secrets.STT_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.STT_AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Upload vocabulary file to S3
+        run: |
+          aws s3 cp infra/transcribe/vocabulary-filter.txt \
+            s3://${{ secrets.TRANSCRIBE_S3_BUCKET }}/vocabulary-filter.txt \
+            --content-type "text/plain"
+
+      - name: Update Transcribe Vocabulary Filter
+        run: |
+          # Check if vocabulary filter exists
+          if aws transcribe get-vocabulary-filter \
+            --vocabulary-filter-name ${{ secrets.TRANSCRIBE_VOCABULARY_FILTER_NAME }} \
+            --region ${{ secrets.AWS_REGION }} 2>/dev/null; then
+            
+            echo "Updating existing vocabulary filter..."
+            aws transcribe update-vocabulary-filter \
+              --vocabulary-filter-name ${{ secrets.TRANSCRIBE_VOCABULARY_FILTER_NAME }} \
+              --vocabulary-filter-file-uri s3://${{ secrets.TRANSCRIBE_S3_BUCKET }}/vocabulary-filter.txt \
+              --region ${{ secrets.AWS_REGION }}
+          else
+            echo "Creating new vocabulary filter..."
+            aws transcribe create-vocabulary-filter \
+              --vocabulary-filter-name ${{ secrets.TRANSCRIBE_VOCABULARY_FILTER_NAME }} \
+              --language-code ko-KR \
+              --vocabulary-filter-file-uri s3://${{ secrets.TRANSCRIBE_S3_BUCKET }}/vocabulary-filter.txt \
+              --region ${{ secrets.AWS_REGION }}
+          fi
+
+      - name: Wait for vocabulary filter to be ready
+        run: |
+          echo "Waiting for vocabulary filter to be ready..."
+          for i in {1..30}; do
+            STATUS=$(aws transcribe get-vocabulary-filter \
+              --vocabulary-filter-name ${{ secrets.TRANSCRIBE_VOCABULARY_FILTER_NAME }} \
+              --region ${{ secrets.AWS_REGION }} \
+              --query 'LastModifiedTime' \
+              --output text 2>/dev/null || echo "PENDING")
+            
+            if [ "$STATUS" != "PENDING" ]; then
+              echo "Vocabulary filter is ready!"
+              exit 0
+            fi
+            
+            echo "Still processing... (attempt $i/30)"
+            sleep 10
+          done
+
+          echo "Warning: Vocabulary filter update may still be processing"
