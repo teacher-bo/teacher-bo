@@ -22,7 +22,6 @@ interface Message {
   textItems: { resultId: string; text: string }[];
   timestamp: Date;
   source?: string;
-  isDummy?: boolean; // Add isDummy property
 }
 
 export default function HomeScreen() {
@@ -167,8 +166,8 @@ export default function HomeScreen() {
         id: latestData.resultId,
         textItems: [
           {
-            resultId: lastMessage?.isDummy ? "-1" : latestData.resultId,
-            text: lastMessage?.isDummy ? "" : latestData.text,
+            resultId: latestData.resultId,
+            text: latestData.text,
           },
         ],
         isUser: true,
@@ -414,9 +413,6 @@ export default function HomeScreen() {
           <>
             {messages
               .filter((message) => {
-                // Filter out dummy messages and messages with empty text
-                if (message.isDummy) return false;
-
                 const messageText = message.textItems
                   .map((item) => item.text)
                   .join(" ")
