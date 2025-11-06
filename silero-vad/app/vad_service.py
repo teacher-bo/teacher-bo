@@ -30,8 +30,8 @@ class SileroVAD:
         # silence_threshold 계산:
         # - 샘플레이트: 16000Hz, 청크 크기: 512 샘플
         # - 1 프레임 = 512/16000 = 0.032초 (32ms)
-        # - 3초 감지: 3 / 0.032 ≈ 94 프레임
-        self.silence_threshold = 94  # ~3초 후 speech_ended 이벤트 발생
+        # - 2초 감지: 2 / 0.032 ≈ 60 프레임
+        self.silence_threshold = 60  # ~2초 후 speech_ended 이벤트 발생
 
         # 전체 no-speech 카운터 (말을 시작하지 않은 경우에도 카운트)
         self.no_speech_frames = 0
