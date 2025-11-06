@@ -27,7 +27,15 @@ class SileroVAD:
         # VAD state management
         self.speech_started = False
         self.silence_frames = 0
-        self.silence_threshold = 100  # Number of silent frames to consider speech ended
+        # silence_threshold 계산:
+        # - 샘플레이트: 16000Hz, 청크 크기: 512 샘플
+        # - 1 프레임 = 512/16000 = 0.032초 (32ms)
+        # - 3초 감지: 3 / 0.032 ≈ 94 프레임
+        self.silence_threshold = 94  # ~3초 후 speech_ended 이벤트 발생
+
+        # 전체 no-speech 카운터 (말을 시작하지 않은 경우에도 카운트)
+        self.no_speech_frames = 0
+        self.no_speech_threshold = 156  # ~5초 동안 아무 말도 없으면 ended
 
         # Audio buffer management
         self.audio_buffer = np.array([], dtype=np.float32)
@@ -86,12 +94,18 @@ class SileroVAD:
                 has_speech = speech_prob > 0.5
 
                 if has_speech:
+                    # 음성 감지됨
                     if not self.speech_started:
                         self.speech_started = True
                         logger.info("Speech started")
                     self.silence_frames = 0
+                    self.no_speech_frames = 0  # 음성 있으면 no-speech 카운터도 리셋
                 else:
+                    # 음성 없음
+                    self.no_speech_frames += 1
+
                     if self.speech_started:
+                        # 말을 시작한 후 침묵 (기존 로직)
                         self.silence_frames += 1
                         logger.debug(
                             "Silence frames: %s / %s",
@@ -102,10 +116,25 @@ class SileroVAD:
                             speech_ended = True
                             self.speech_started = False
                             logger.info(
-                                "Speech ended, silence frames: %s",
+                                "Speech ended (after speaking), silence frames: %s",
                                 self.silence_frames,
                             )
                             self.silence_frames = 0
+                            self.no_speech_frames = 0
+                    else:
+                        # 말을 시작하지 않은 상태에서 계속 무음
+                        logger.debug(
+                            "No speech frames: %s / %s",
+                            self.no_speech_frames,
+                            self.no_speech_threshold,
+                        )
+                        if self.no_speech_frames >= self.no_speech_threshold:
+                            speech_ended = True
+                            logger.info(
+                                "Speech ended (no speech detected), no-speech frames: %s",
+                                self.no_speech_frames,
+                            )
+                            self.no_speech_frames = 0
 
             if not processed:
                 logger.debug(
@@ -127,5 +156,6 @@ class SileroVAD:
         """Reset VAD state"""
         self.speech_started = False
         self.silence_frames = 0
+        self.no_speech_frames = 0
         self.audio_buffer = np.array([], dtype=np.float32)
         logger.info("VAD state reset")
