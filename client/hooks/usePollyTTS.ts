@@ -1,10 +1,16 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useMutation, useQuery } from "@apollo/client/react";
-import { Audio, AVPlaybackStatus } from "expo-av";
+import {
+  useAudioPlayer,
+  AudioSource,
+  setAudioModeAsync,
+  AudioModule,
+} from "expo-audio";
 import {
   SYNTHESIZE_SPEECH,
   GET_AVAILABLE_KOREAN_VOICES,
 } from "../services/apolloClient";
+import { Alert } from "react-native";
 
 export interface SynthesizeSpeechInput {
   text: string;
@@ -30,9 +36,8 @@ export interface AvailableVoice {
 
 export const usePollyTTS = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentSound, setCurrentSound] = useState<Audio.Sound | null>(null);
+  const player = useAudioPlayer();
 
   const [synthesizeSpeechMutation] = useMutation<
     { synthesizeSpeech: SynthesizeSpeechResponse },
@@ -58,21 +63,18 @@ export const usePollyTTS = () => {
   );
 
   /**
-   * 이전 사운드를 정리하는 헬퍼 함수
+   * 오디오 플레이어 정리 함수
    */
-  const cleanupCurrentSound = useCallback(async () => {
-    if (currentSound) {
-      try {
-        await currentSound.unloadAsync();
-      } catch (err) {
-        console.warn("Error unloading sound:", err);
-      }
-      setCurrentSound(null);
-      setIsPlaying(false);
-      setIsLoading(false);
-      setError(null);
+  const cleanupPlayer = useCallback(() => {
+    try {
+      player.pause();
+      player.remove();
+    } catch (err) {
+      console.warn("Error cleaning up player:", err);
     }
-  }, [currentSound]);
+    setIsLoading(false);
+    setError(null);
+  }, [player]);
 
   /**
    * TTS API를 호출하여 오디오 데이터를 가져오는 함수
@@ -113,44 +115,23 @@ export const usePollyTTS = () => {
   /**
    * 오디오 재생이 완료될 때까지 대기하는 Promise
    */
-  const waitForPlaybackComplete = useCallback(
-    (sound: Audio.Sound): Promise<void> => {
-      return new Promise((resolve) => {
-        let isResolved = false;
+  const waitForPlaybackComplete = useCallback((): Promise<void> => {
+    return new Promise((resolve) => {
+      const checkInterval = setInterval(() => {
+        if (!player.playing) {
+          clearInterval(checkInterval);
+          resolve();
+        }
+      }, 100);
 
-        const resolveOnce = () => {
-          if (!isResolved) {
-            isResolved = true;
-            setIsPlaying(false);
-            sound.unloadAsync().catch(() => {});
-            setCurrentSound(null);
-            resolve();
-          }
-        };
-
-        // 재생 완료 콜백 등록
-        sound.setOnPlaybackStatusUpdate((status: AVPlaybackStatus) => {
-          if (status.isLoaded && status.didJustFinish) {
-            resolveOnce();
-          }
-        });
-
-        // 안전장치: 30초 후 강제 완료
-        const timeoutId = setTimeout(() => {
-          console.log("Audio playback timeout, forcing completion");
-          resolveOnce();
-        }, 30000);
-
-        // Promise가 resolve되면 타임아웃 정리
-        const originalResolve = resolve;
-        resolve = () => {
-          clearTimeout(timeoutId);
-          originalResolve();
-        };
-      });
-    },
-    []
-  );
+      // 안전장치: 30초 후 강제 완료
+      setTimeout(() => {
+        clearInterval(checkInterval);
+        console.log("Audio playback timeout, forcing completion");
+        resolve();
+      }, 30000);
+    });
+  }, [player]);
 
   /**
    * 텍스트를 음성으로 변환하고 재생 완료까지 대기
@@ -164,71 +145,69 @@ export const usePollyTTS = () => {
         setIsLoading(true);
         setError(null);
 
-        // 1. 이전 사운드 정리
-        await cleanupCurrentSound();
+        // 1. 이전 재생 정리
+        cleanupPlayer();
 
         // 2. TTS API 호출
         const audioUri = await synthesizeAudio(text, options);
 
-        // 3. 오디오 객체 생성
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: audioUri },
-          { shouldPlay: false, volume: 1.0 }
-        );
-
-        // 4. 오디오 재생
-        setCurrentSound(sound);
-        await sound.playAsync();
-        setIsPlaying(true);
+        // 3. 오디오 재생
+        player.replace({ uri: audioUri } as AudioSource);
+        player.play();
         console.log("Successfully started playing Polly TTS audio");
 
-        // 6. 재생 완료까지 대기
-        await waitForPlaybackComplete(sound);
+        // 4. 재생 완료까지 대기
+        await waitForPlaybackComplete();
       } catch (err) {
         console.error("Error in speakText:", err);
         setError(err instanceof Error ? err.message : "Failed to speak text");
-        await cleanupCurrentSound();
+        cleanupPlayer();
         throw err;
       } finally {
         setIsLoading(false);
       }
       console.log("speakText completed");
     },
-    [synthesizeAudio, cleanupCurrentSound, waitForPlaybackComplete]
+    [synthesizeAudio, cleanupPlayer, waitForPlaybackComplete, player]
   );
 
-  const stopSpeaking = useCallback(async (): Promise<void> => {
+  const stopSpeaking = useCallback((): void => {
     try {
-      if (currentSound) {
-        await currentSound.stopAsync();
-        await cleanupCurrentSound();
-      }
+      cleanupPlayer();
     } catch (err) {
       console.error("Error stopping speech:", err);
     }
-  }, [currentSound]);
+  }, [cleanupPlayer]);
 
-  const pauseSpeaking = useCallback(async (): Promise<void> => {
+  const pauseSpeaking = useCallback((): void => {
     try {
-      if (currentSound && isPlaying) {
-        await currentSound.pauseAsync();
-        setIsPlaying(false);
-      }
+      player.pause();
     } catch (err) {
       console.error("Error pausing speech:", err);
     }
-  }, [currentSound, isPlaying]);
+  }, [player]);
 
-  const resumeSpeaking = useCallback(async (): Promise<void> => {
+  const resumeSpeaking = useCallback((): void => {
     try {
-      if (currentSound && !isPlaying) {
-        await currentSound.playAsync();
-        setIsPlaying(true);
-      }
+      player.play();
     } catch (err) {
       console.error("Error resuming speech:", err);
     }
-  }, [currentSound, isPlaying]);
+  }, [player]);
+
+  useEffect(() => {
+    (async () => {
+      const status = await AudioModule.requestRecordingPermissionsAsync();
+      if (!status.granted) {
+        Alert.alert("Permission to access microphone was denied");
+      }
+
+      setAudioModeAsync({
+        playsInSilentMode: true,
+        allowsRecording: true,
+      });
+    })();
+  }, []);
 
   return {
     speakText,
@@ -236,7 +215,7 @@ export const usePollyTTS = () => {
     pauseSpeaking,
     resumeSpeaking,
     isLoading,
-    isPlaying,
+    isPlaying: player.playing,
     error,
     availableVoices: voicesData?.getAvailableKoreanVoices || [],
     voicesLoading,
