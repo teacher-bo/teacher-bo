@@ -8,7 +8,7 @@ class OutputStructure(BaseModel):
     answer_type: str = Field(description="답변 유형")
     description: str = Field(description="질문에 대한 간결하고 명확한 설명")
     source: str = Field(description="답변 근거가 된 룰북의 실제 문장 (원문 그대로 인용)")
-    page: str = Field(description="룰북 페이지 번호 (예: '5페이지' 또는 '5-7페이지')")
+    page: int = Field(description="룰북 페이지 값 (예: 5 또는 'null')")
 
 
 class ChatRequest(BaseModel):
@@ -21,10 +21,10 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     """채팅 응답 스키마"""
     game_title: str = Field(..., description="게임 이름")
-    answer_type: str = Field(..., description="답변 유형 (YES/NO/OTHERS)")
+    answer_type: str = Field(..., description="답변 유형 (YES/NO/EXPLAIN/CANNOT_ANSWER)")
     description: str = Field(..., description="답변 설명")
     source: str = Field(..., description="출처 (룰북 원문)")
-    page: str = Field(..., description="페이지 번호")
+    page: int = Field(..., description="페이지 번호")
     session_id: str = Field(..., description="세션 ID")
 
 

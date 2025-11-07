@@ -23,7 +23,7 @@ class PromptTemplate:
       * For binary, start with "예" or "아니오".
       * For CANNOT_ANSWER, start with "모르겠습니다." or "근거 부족으로 답변 불가."
     - source: quoted rulebook sentence(s) used as evidence, ordered by importance (most critical first), or "" if none
-    - page: page info or "no page info"
+    - page: one integer of page number or "null"
     - Inference: optional; leave empty by default. Only fill this when the USER explicitly asks for an inference; start with "Inference:".
 
     Notes:
