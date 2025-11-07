@@ -9,6 +9,7 @@ import {
   ScrollView,
   Animated,
   Pressable,
+  Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -26,6 +27,7 @@ interface Message {
   textItems: { resultId: string; text: string }[];
   timestamp: Date;
   source?: string;
+  page?: string; // Add page field
   isDummy?: boolean;
 }
 
@@ -421,7 +423,8 @@ export default function BreathePage() {
                       },
                     ],
                     timestamp: new Date(),
-                    source: aiResponse.source
+                    source: aiResponse.source,
+                    page : aiResponse.page
                     // source: "OpenAI GPT-4",
                   };
 
@@ -603,6 +606,25 @@ export default function BreathePage() {
                               <Text style={styles.sourceText}>
                                 {message.source}
                               </Text>
+                              {message.page && message.page !== "null" && (
+                                <>
+                                  <Text style={styles.sourceSeparator}> • </Text>
+                                  <TouchableOpacity
+                                    onPress={() => {
+                                      // TODO: Replace with actual rulebook URL
+                                      const rulebookUrl = `https://example.com/rulebooks/${message.source}/page/${message.page}`;
+                                      Linking.openURL(rulebookUrl).catch((err) =>
+                                        console.error("Failed to open URL:", err)
+                                      );
+                                    }}
+                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                  >
+                                    <Text style={styles.pageLink}>
+                                      p.{message.page}
+                                    </Text>
+                                  </TouchableOpacity>
+                                </>
+                              )}
                             </View>
                           )}
                         </View>
@@ -800,5 +822,16 @@ const styles = StyleSheet.create({
     color: "#ccc",
     fontSize: 12,
     fontStyle: "italic",
+  },
+  sourceSeparator: {
+    color: "#888",
+    fontSize: 12,
+    marginHorizontal: 4,
+  },
+  pageLink: {
+    color: "#4A9EFF",
+    fontSize: 12,
+    fontWeight: "600",
+    textDecorationLine: "underline",
   },
 });

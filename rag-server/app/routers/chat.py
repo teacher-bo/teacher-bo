@@ -57,7 +57,7 @@ async def chat(request: ChatRequest):
             answer_type=response.get("answer_type", "OTHERS"),
             description=response.get("description", ""),
             source=response.get("source", ""),
-            page=response.get("page", "페이지 정보 없음"),
+            page=response.get("page"),
             session_id=request.session_id
         )
         
