@@ -510,128 +510,126 @@ export default function BreathePage() {
 
       {/* Messages Container - Expandable */}
       {messages.length > 0 && (
-        <Animated.View
-          style={[
-            styles.messagesContainer,
-            {
-              height: messagesHeight,
-            },
-          ]}
-        >
-          {/* {isExpanded && (
-            <View style={styles.messagesHeader}>
-              <TouchableOpacity
-                onPress={toggleExpanded}
-                style={styles.closeButton}
+        <>
+          {/* Backdrop - closes expanded view when clicked */}
+          {isExpanded && (
+            <Pressable style={styles.backdrop} onPress={toggleExpanded} />
+          )}
+
+          <Animated.View
+            style={[
+              styles.messagesContainer,
+              {
+                height: messagesHeight,
+              },
+            ]}
+          >
+            <View style={styles.scrollViewContainer}>
+              <ScrollView
+                style={styles.messagesScrollView}
+                showsVerticalScrollIndicator={false}
+                scrollEnabled={isExpanded}
               >
-                <Ionicons name="close" size={24} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          )} */}
+                <Pressable
+                  onPress={() => {
+                    if (!isExpanded) {
+                      toggleExpanded();
+                    }
+                  }}
+                  disabled={isExpanded}
+                >
+                  {(isExpanded ? messages : messages.slice(-3))
+                    .filter((message) => {
+                      if (message.isDummy) return false;
 
-          <View style={styles.scrollViewContainer}>
-            <ScrollView
-              style={styles.messagesScrollView}
-              showsVerticalScrollIndicator={false}
-              scrollEnabled={isExpanded}
-            >
-              <Pressable
-                onPress={() => {
-                  if (!isExpanded) {
-                    toggleExpanded();
-                  }
-                }}
-                disabled={isExpanded}
-              >
-                {(isExpanded ? messages : messages.slice(-3))
-                  .filter((message) => {
-                    if (message.isDummy) return false;
+                      const messageText = message.textItems
+                        .map((item) => item.text)
+                        .join(" ")
+                        .trim();
+                      return messageText.length > 0;
+                    })
+                    .map((message, index, filteredMessages) => {
+                      // Determine if this is the oldest message in collapsed view
+                      const isOldestInCollapsedView =
+                        !isExpanded &&
+                        index === 0 &&
+                        filteredMessages.length === 3;
 
-                    const messageText = message.textItems
-                      .map((item) => item.text)
-                      .join(" ")
-                      .trim();
-                    return messageText.length > 0;
-                  })
-                  .map((message, index, filteredMessages) => {
-                    // Determine if this is the oldest message in collapsed view
-                    const isOldestInCollapsedView =
-                      !isExpanded &&
-                      index === 0 &&
-                      filteredMessages.length === 3;
-
-                    return (
-                      <View
-                        key={message.id}
-                        style={[
-                          styles.messageBubble,
-                          message.isUser
-                            ? styles.userMessage
-                            : styles.botMessage,
-                          isOldestInCollapsedView && styles.fadedMessage,
-                        ]}
-                      >
-                        {isOldestInCollapsedView && (
-                          <LinearGradient
-                            colors={[
-                              "rgba(36, 43, 56, 0.7)",
-                              "rgba(36, 43, 56, 0)",
-                            ]}
-                            style={styles.gradientOverlay}
-                            pointerEvents="none"
-                          />
-                        )}
-                        <Text
+                      return (
+                        <View
+                          key={message.id}
                           style={[
-                            styles.messageText,
+                            styles.messageBubble,
                             message.isUser
-                              ? styles.userMessageText
-                              : styles.botMessageText,
-                            isOldestInCollapsedView && styles.fadedText,
+                              ? styles.userMessage
+                              : styles.botMessage,
+                            isOldestInCollapsedView && styles.fadedMessage,
                           ]}
-                          numberOfLines={isExpanded ? undefined : 2}
-                          ellipsizeMode={isExpanded ? undefined : "tail"}
                         >
-                          {message.textItems.map((item) => item.text).join(" ")}
-                        </Text>
-                        {!message.isUser && message.source && isExpanded && (
-                          <View style={styles.sourceContainer}>
-                            <Ionicons
-                              name="document-text-outline"
-                              size={12}
-                              color="#aaa"
-                              style={styles.sourceIcon}
+                          {isOldestInCollapsedView && (
+                            <LinearGradient
+                              colors={[
+                                "rgba(36, 43, 56, 0.7)",
+                                "rgba(36, 43, 56, 0)",
+                              ]}
+                              style={styles.gradientOverlay}
+                              pointerEvents="none"
                             />
-                            <Text style={styles.sourceText}>
-                              {message.source}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                    );
-                  })}
-              </Pressable>
-            </ScrollView>
+                          )}
+                          <Text
+                            style={[
+                              styles.messageText,
+                              message.isUser
+                                ? styles.userMessageText
+                                : styles.botMessageText,
+                              isOldestInCollapsedView && styles.fadedText,
+                            ]}
+                            numberOfLines={isExpanded ? undefined : 2}
+                            ellipsizeMode={isExpanded ? undefined : "tail"}
+                          >
+                            {message.textItems
+                              .map((item) => item.text)
+                              .join(" ")}
+                          </Text>
+                          {!message.isUser && message.source && isExpanded && (
+                            <View style={styles.sourceContainer}>
+                              <Ionicons
+                                name="document-text-outline"
+                                size={12}
+                                color="#aaa"
+                                style={styles.sourceIcon}
+                              />
+                              <Text style={styles.sourceText}>
+                                {message.source}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      );
+                    })}
+                </Pressable>
+              </ScrollView>
 
-            {/* Top gradient fade */}
-            {isExpanded && (
-              <LinearGradient
-                colors={["rgba(36, 43, 56, 0.8)", "rgba(36, 43, 56, 0)"]}
-                style={styles.scrollTopGradient}
-                pointerEvents="none"
-              />
-            )}
+              {/* Top gradient fade */}
+              {isExpanded && (
+                <LinearGradient
+                  colors={["rgba(36, 43, 56, 0.8)", "rgba(36, 43, 56, 0)"]}
+                  style={styles.scrollTopGradient}
+                  pointerEvents="none"
+                />
+              )}
 
-            {/* Bottom gradient fade */}
-            {isExpanded && (
-              <LinearGradient
-                colors={["rgba(36, 43, 56, 0)", "rgba(36, 43, 56, 0.8)"]}
-                style={styles.scrollBottomGradient}
-                pointerEvents="none"
-              />
-            )}
-          </View>
-        </Animated.View>
+              {/* Bottom gradient fade */}
+              {isExpanded && (
+                <LinearGradient
+                  colors={["rgba(36, 43, 56, 0)", "rgba(36, 43, 56, 0.8)"]}
+                  style={styles.scrollBottomGradient}
+                  pointerEvents="none"
+                />
+              )}
+            </View>
+          </Animated.View>
+        </>
       )}
     </SafeAreaView>
   );
@@ -641,6 +639,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#000",
+  },
+  backdrop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1,
   },
   breatheContainer: {
     position: "absolute",
@@ -673,6 +679,7 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: 16,
     overflow: "hidden",
+    zIndex: 2, // Above backdrop
   },
   messagesHeader: {
     flexDirection: "row",
