@@ -30,11 +30,32 @@ interface TRingProps {
   scale: SharedValue<number>;
   width: number;
   height: number;
+  offsetY: number;
 }
 
-const Ring = ({ index, progress, scale, width, height }: TRingProps) => {
+const Ring = ({
+  index,
+  progress,
+  scale,
+  width,
+  height,
+  offsetY,
+}: TRingProps) => {
   const R = width / 8;
-  const center = useMemo(() => vec(width / 2, height / 2), [height, width]);
+  const animatedOffsetY = useSharedValue(offsetY);
+
+  // Animate offsetY changes smoothly
+  useEffect(() => {
+    animatedOffsetY.value = withSpring(offsetY, {
+      damping: 20,
+      stiffness: 90,
+    });
+  }, [offsetY, animatedOffsetY]);
+
+  const center = useDerivedValue(
+    () => vec(width / 2, height / 2 + animatedOffsetY.value),
+    [height, width, animatedOffsetY]
+  );
 
   const theta = (index * (2 * Math.PI)) / 6;
   const transform = useDerivedValue(() => {
@@ -59,11 +80,16 @@ const Ring = ({ index, progress, scale, width, height }: TRingProps) => {
 export const Breathe = ({
   width,
   height,
+  offsetY = 0,
 }: {
   width: number;
   height: number;
+  offsetY?: number;
 }) => {
-  const center = useMemo(() => vec(width / 2, height / 2), [height, width]);
+  const center = useMemo(
+    () => vec(width / 2, height / 2 + offsetY),
+    [height, width, offsetY]
+  );
 
   const progress = useLoop({ duration: 2400 });
   const pitchScale = useSharedValue(1);
@@ -160,6 +186,7 @@ export const Breathe = ({
               scale={pitchScale}
               width={width}
               height={height}
+              offsetY={offsetY}
             />
           );
         })}
