@@ -158,6 +158,7 @@ export default function BreathePage() {
     new Animated.Value(MESSAGES_COMPACT_HEIGHT)
   ).current; // Initial compact height
   const currentlyAddingMessageRef = useRef(false);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const {
     isRecording,
@@ -208,7 +209,12 @@ export default function BreathePage() {
         toValue: MESSAGES_EXPANDED_HEIGHT, // Fixed expanded height
         duration: 300,
         useNativeDriver: false,
-      }).start();
+      }).start(() => {
+        // Scroll to bottom after animation completes
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      });
     } else {
       // Collapsing
       setBreatheOffsetY(messages.length > 0 ? BREATHE_OFFSET_COMPACT : 0);
@@ -530,6 +536,7 @@ export default function BreathePage() {
           >
             <View style={styles.scrollViewContainer}>
               <ScrollView
+                ref={scrollViewRef}
                 style={styles.messagesScrollView}
                 showsVerticalScrollIndicator={false}
                 scrollEnabled={isExpanded}
