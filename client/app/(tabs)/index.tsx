@@ -421,6 +421,7 @@ export default function BreathePage() {
                       },
                     ],
                     timestamp: new Date(),
+                    source: aiResponse.source
                     // source: "OpenAI GPT-4",
                   };
 
