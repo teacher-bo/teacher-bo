@@ -1,0 +1,109 @@
+#!/bin/zsh
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Function to display usage
+usage() {
+    echo "Usage: ./bo run <service>"
+    echo ""
+    echo "Available services:"
+    echo "  client  - Start the client application (yarn start)"
+    echo "  server  - Start the server application (yarn start:dev)"
+    echo "  vad     - Start the silero-vad service (pipenv run python main.py)"
+    echo "  all     - Start all services simultaneously"
+    echo ""
+    echo "Example:"
+    echo "  ./bo run client"
+    echo "  ./bo run all"
+}
+
+# Function to run client
+run_client() {
+    echo "${GREEN}Starting client...${NC}"
+    cd "$SCRIPT_DIR/client"
+    yarn start
+}
+
+# Function to run server
+run_server() {
+    echo "${GREEN}Starting server...${NC}"
+    cd "$SCRIPT_DIR/server"
+    yarn start:dev
+}
+
+# Function to run vad
+run_vad() {
+    echo "${GREEN}Starting silero-vad...${NC}"
+    cd "$SCRIPT_DIR/silero-vad"
+    PIPENV_IGNORE_VIRTUALENVS=1 pipenv run python main.py
+}
+
+# Function to run all services
+run_all() {
+    echo "${GREEN}Starting all services...${NC}"
+    
+    # Run client in background
+    (cd "$SCRIPT_DIR/client" && yarn start) &
+    CLIENT_PID=$!
+    echo "${YELLOW}Client started with PID: $CLIENT_PID${NC}"
+    
+    # Run server in background
+    (cd "$SCRIPT_DIR/server" && yarn start:dev) &
+    SERVER_PID=$!
+    echo "${YELLOW}Server started with PID: $SERVER_PID${NC}"
+    
+    # Run vad in background
+    (cd "$SCRIPT_DIR/silero-vad" && PIPENV_IGNORE_VIRTUALENVS=1 pipenv run python main.py) &
+    VAD_PID=$!
+    echo "${YELLOW}VAD started with PID: $VAD_PID${NC}"
+    
+    echo ""
+    echo "${GREEN}All services started successfully!${NC}"
+    echo "To stop all services, press Ctrl+C"
+    echo ""
+    
+    # Wait for all background processes
+    wait
+}
+
+# Main script logic
+if [ "$1" != "run" ]; then
+    echo "${RED}Error: First argument must be 'run'${NC}"
+    usage
+    exit 1
+fi
+
+if [ -z "$2" ]; then
+    echo "${RED}Error: Service name is required${NC}"
+    usage
+    exit 1
+fi
+
+case "$2" in
+    client)
+        run_client
+        ;;
+    server)
+        run_server
+        ;;
+    vad)
+        run_vad
+        ;;
+    all)
+        run_all
+        ;;
+    *)
+        echo "${RED}Error: Unknown service '$2'${NC}"
+        usage
+        exit 1
+        ;;
+esac
