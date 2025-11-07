@@ -1,5 +1,5 @@
 import { useMemo, useEffect } from "react";
-import { Platform } from "react-native";
+import { Platform, Dimensions } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
 import {
   useSharedValue,
@@ -28,8 +28,9 @@ interface TRingProps {
   index: number;
   progress: SharedValue<number>;
   scale: SharedValue<number>;
-  width: number;
-  height: number;
+  ringWidth: number;
+  canvasWidth: number;
+  canvasHeight: number;
   offsetY: number;
 }
 
@@ -37,11 +38,12 @@ const Ring = ({
   index,
   progress,
   scale,
-  width,
-  height,
+  ringWidth,
+  canvasWidth,
+  canvasHeight,
   offsetY,
 }: TRingProps) => {
-  const R = width / 8;
+  const R = ringWidth / 8;
   const animatedOffsetY = useSharedValue(offsetY);
 
   // Animate offsetY changes smoothly
@@ -53,8 +55,8 @@ const Ring = ({
   }, [offsetY, animatedOffsetY]);
 
   const center = useDerivedValue(
-    () => vec(width / 2, height / 2 + animatedOffsetY.value),
-    [height, width, animatedOffsetY]
+    () => vec(canvasWidth / 2, canvasHeight / 2 + animatedOffsetY.value),
+    [canvasHeight, canvasWidth, animatedOffsetY]
   );
 
   const theta = (index * (2 * Math.PI)) / 6;
@@ -79,16 +81,18 @@ const Ring = ({
 
 export const Breathe = ({
   width,
-  height,
   offsetY = 0,
 }: {
   width: number;
-  height: number;
   offsetY?: number;
 }) => {
+  const wind = Dimensions.get("window");
+  const canvasWidth = Platform.OS === "web" ? 440 : wind.width;
+  const canvasHeight = wind.height;
+
   const center = useMemo(
-    () => vec(width / 2, height / 2 + offsetY),
-    [height, width, offsetY]
+    () => vec(canvasWidth / 2, canvasHeight / 2 + offsetY),
+    [canvasHeight, canvasWidth, offsetY]
   );
 
   const progress = useLoop({ duration: 2400 });
@@ -173,8 +177,8 @@ export const Breathe = ({
   }, [pitchScale]);
 
   return (
-    <Canvas style={{ width, height }}>
-      <Fill color="#242b38" />
+    <Canvas style={{ width: canvasWidth, height: canvasHeight }}>
+      <Fill color="rgb(36, 43, 56)" />
       <Group origin={center} transform={transform} blendMode="screen">
         <BlurMask style="solid" blur={40} />
         {new Array(6).fill(0).map((_, index) => {
@@ -184,8 +188,9 @@ export const Breathe = ({
               index={index}
               progress={progress}
               scale={pitchScale}
-              width={width}
-              height={height}
+              ringWidth={width}
+              canvasWidth={canvasWidth}
+              canvasHeight={canvasHeight}
               offsetY={offsetY}
             />
           );

@@ -8,9 +8,11 @@ import {
   TouchableOpacity,
   ScrollView,
   Animated,
+  Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 
 import Breathe from "@/components/Breathe";
 import { useStreamingAudioService } from "../../hooks/useStreamingAudioService";
@@ -26,6 +28,13 @@ interface Message {
   source?: string;
   isDummy?: boolean;
 }
+
+// Constants
+const MESSAGES_COMPACT_HEIGHT = 220; // Height for showing 2-3 messages in compact view
+const MESSAGES_EXPANDED_HEIGHT = 500; // Fixed height when expanded
+const BREATHE_OFFSET_COMPACT = -100; // Breathe offset when messages are compact
+const BREATHE_OFFSET_EXPANDED = -280; // Breathe offset when messages are expanded
+const BREATHE_SIZE_REDUCTION = 0.7; // Scale factor for Breathe when expanded (70% of original size)
 
 export default function BreathePage() {
   const wind = Dimensions.get("window");
@@ -73,10 +82,79 @@ export default function BreathePage() {
       ],
       timestamp: new Date(),
     },
+    {
+      id: `msg_${Date.now() + 3}_${Math.random().toString(36).substr(2, 9)}`,
+      isUser: true,
+      textItems: [
+        {
+          resultId: `item_${Date.now() + 3}`,
+          text: "고마워, 보쌤!",
+        },
+      ],
+      timestamp: new Date(),
+    },
+    {
+      id: `msg_${Date.now() + 4}_${Math.random().toString(36).substr(2, 9)}`,
+      isUser: false,
+      textItems: [
+        {
+          resultId: `item_${Date.now() + 4}`,
+          text: "천만에요! 언제든지 불러주세요.",
+        },
+      ],
+      timestamp: new Date(),
+    },
+    {
+      id: `msg_${Date.now() + 5}_${Math.random().toString(36).substr(2, 9)}`,
+      isUser: true,
+      textItems: [
+        {
+          resultId: `item_${Date.now() + 5}`,
+          text: "보쌤, 보드게임 추천해줘.",
+        },
+      ],
+      timestamp: new Date(),
+    },
+    {
+      id: `msg_${Date.now() + 6}_${Math.random().toString(36).substr(2, 9)}`,
+      isUser: false,
+      textItems: [
+        {
+          resultId: `item_${Date.now() + 6}`,
+          text: "파티 게임을 좋아하신다면 '카탄의 개척자들'을 추천드려요. 전략과 협상이 재미있는 게임입니다!",
+        },
+      ],
+      timestamp: new Date(),
+    },
+    {
+      id: `msg_${Date.now() + 7}_${Math.random().toString(36).substr(2, 9)}`,
+      isUser: true,
+      textItems: [
+        {
+          resultId: `item_${Date.now() + 7}`,
+          text: "좋아 보여! 다음에 해볼게.",
+        },
+      ],
+      timestamp: new Date(),
+    },
+    {
+      id: `msg_${Date.now() + 8}_${Math.random().toString(36).substr(2, 9)}`,
+      isUser: false,
+      textItems: [
+        {
+          resultId: `item_${Date.now() + 8}`,
+          text: "네! 즐거운 시간 보내세요!",
+        },
+      ],
+      timestamp: new Date(),
+    },
   ]);
   const [isExpanded, setIsExpanded] = useState(false);
   const [breatheOffsetY, setBreatheOffsetY] = useState(0);
-  const messagesHeight = useRef(new Animated.Value(160)).current; // Initial compact height
+  const [breatheScale, setBreatheScale] = useState(1); // Scale for Breathe size
+  const messagesHeight = useRef(
+    new Animated.Value(MESSAGES_COMPACT_HEIGHT)
+  ).current; // Initial compact height
   const currentlyAddingMessageRef = useRef(false);
 
   const {
@@ -122,17 +200,19 @@ export default function BreathePage() {
 
     if (!isExpanded) {
       // Expanding
-      setBreatheOffsetY(-250);
+      setBreatheOffsetY(BREATHE_OFFSET_EXPANDED);
+      setBreatheScale(BREATHE_SIZE_REDUCTION);
       Animated.timing(messagesHeight, {
-        toValue: height - 160, // Almost full screen
+        toValue: MESSAGES_EXPANDED_HEIGHT, // Fixed expanded height
         duration: 300,
         useNativeDriver: false,
       }).start();
     } else {
       // Collapsing
-      setBreatheOffsetY(messages.length > 0 ? -100 : 0);
+      setBreatheOffsetY(messages.length > 0 ? BREATHE_OFFSET_COMPACT : 0);
+      setBreatheScale(1);
       Animated.timing(messagesHeight, {
-        toValue: 160, // Compact height
+        toValue: MESSAGES_COMPACT_HEIGHT, // Compact height
         duration: 300,
         useNativeDriver: false,
       }).start();
@@ -142,7 +222,7 @@ export default function BreathePage() {
   // Initialize Breathe position slightly up when messages exist
   useEffect(() => {
     if (messages.length > 0 && !isExpanded) {
-      setBreatheOffsetY(-100);
+      setBreatheOffsetY(BREATHE_OFFSET_COMPACT);
     } else if (messages.length === 0) {
       setBreatheOffsetY(0);
     }
@@ -420,7 +500,7 @@ export default function BreathePage() {
     <SafeAreaView style={styles.container} edges={[]}>
       {/* Breathe Animation - Circle position controlled by offsetY */}
       <View style={styles.breatheContainer}>
-        <Breathe width={width} height={height} offsetY={breatheOffsetY} />
+        <Breathe width={width * breatheScale} offsetY={breatheOffsetY} />
       </View>
 
       {/* Status Overlay */}
@@ -438,8 +518,7 @@ export default function BreathePage() {
             },
           ]}
         >
-          {/* Header - Only visible when expanded */}
-          {isExpanded && (
+          {/* {isExpanded && (
             <View style={styles.messagesHeader}>
               <TouchableOpacity
                 onPress={toggleExpanded}
@@ -448,70 +527,110 @@ export default function BreathePage() {
                 <Ionicons name="close" size={24} color="#fff" />
               </TouchableOpacity>
             </View>
-          )}
+          )} */}
 
-          {/* Messages ScrollView */}
-          <ScrollView
-            style={styles.messagesScrollView}
-            showsVerticalScrollIndicator={false}
-            scrollEnabled={isExpanded}
-          >
-            {(isExpanded ? messages : messages.slice(-3))
-              .filter((message) => {
-                // Filter out dummy messages and messages with empty text
-                if (message.isDummy) return false;
-
-                const messageText = message.textItems
-                  .map((item) => item.text)
-                  .join(" ")
-                  .trim();
-                return messageText.length > 0;
-              })
-              .map((message) => (
-                <View
-                  key={message.id}
-                  style={[
-                    styles.messageBubble,
-                    message.isUser ? styles.userMessage : styles.botMessage,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.messageText,
-                      message.isUser
-                        ? styles.userMessageText
-                        : styles.botMessageText,
-                    ]}
-                    numberOfLines={isExpanded ? undefined : 2}
-                    ellipsizeMode={isExpanded ? undefined : "tail"}
-                  >
-                    {message.textItems.map((item) => item.text).join(" ")}
-                  </Text>
-                  {!message.isUser && message.source && isExpanded && (
-                    <View style={styles.sourceContainer}>
-                      <Ionicons
-                        name="document-text-outline"
-                        size={12}
-                        color="#aaa"
-                        style={styles.sourceIcon}
-                      />
-                      <Text style={styles.sourceText}>{message.source}</Text>
-                    </View>
-                  )}
-                </View>
-              ))}
-          </ScrollView>
-
-          {/* Tap hint - Only visible when not expanded */}
-          {!isExpanded && (
-            <TouchableOpacity
-              style={styles.tapHintContainer}
-              onPress={toggleExpanded}
-              activeOpacity={0.8}
+          <View style={styles.scrollViewContainer}>
+            <ScrollView
+              style={styles.messagesScrollView}
+              showsVerticalScrollIndicator={false}
+              scrollEnabled={isExpanded}
             >
-              <Text style={styles.tapHint}>탭하여 전체 대화 보기</Text>
-            </TouchableOpacity>
-          )}
+              <Pressable
+                onPress={() => {
+                  if (!isExpanded) {
+                    toggleExpanded();
+                  }
+                }}
+                disabled={isExpanded}
+              >
+                {(isExpanded ? messages : messages.slice(-3))
+                  .filter((message) => {
+                    if (message.isDummy) return false;
+
+                    const messageText = message.textItems
+                      .map((item) => item.text)
+                      .join(" ")
+                      .trim();
+                    return messageText.length > 0;
+                  })
+                  .map((message, index, filteredMessages) => {
+                    // Determine if this is the oldest message in collapsed view
+                    const isOldestInCollapsedView =
+                      !isExpanded &&
+                      index === 0 &&
+                      filteredMessages.length === 3;
+
+                    return (
+                      <View
+                        key={message.id}
+                        style={[
+                          styles.messageBubble,
+                          message.isUser
+                            ? styles.userMessage
+                            : styles.botMessage,
+                          isOldestInCollapsedView && styles.fadedMessage,
+                        ]}
+                      >
+                        {isOldestInCollapsedView && (
+                          <LinearGradient
+                            colors={[
+                              "rgba(36, 43, 56, 0.7)",
+                              "rgba(36, 43, 56, 0)",
+                            ]}
+                            style={styles.gradientOverlay}
+                            pointerEvents="none"
+                          />
+                        )}
+                        <Text
+                          style={[
+                            styles.messageText,
+                            message.isUser
+                              ? styles.userMessageText
+                              : styles.botMessageText,
+                            isOldestInCollapsedView && styles.fadedText,
+                          ]}
+                          numberOfLines={isExpanded ? undefined : 2}
+                          ellipsizeMode={isExpanded ? undefined : "tail"}
+                        >
+                          {message.textItems.map((item) => item.text).join(" ")}
+                        </Text>
+                        {!message.isUser && message.source && isExpanded && (
+                          <View style={styles.sourceContainer}>
+                            <Ionicons
+                              name="document-text-outline"
+                              size={12}
+                              color="#aaa"
+                              style={styles.sourceIcon}
+                            />
+                            <Text style={styles.sourceText}>
+                              {message.source}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    );
+                  })}
+              </Pressable>
+            </ScrollView>
+
+            {/* Top gradient fade */}
+            {isExpanded && (
+              <LinearGradient
+                colors={["rgba(36, 43, 56, 0.8)", "rgba(36, 43, 56, 0)"]}
+                style={styles.scrollTopGradient}
+                pointerEvents="none"
+              />
+            )}
+
+            {/* Bottom gradient fade */}
+            {isExpanded && (
+              <LinearGradient
+                colors={["rgba(36, 43, 56, 0)", "rgba(36, 43, 56, 0.8)"]}
+                style={styles.scrollBottomGradient}
+                pointerEvents="none"
+              />
+            )}
+          </View>
         </Animated.View>
       )}
     </SafeAreaView>
@@ -578,6 +697,27 @@ const styles = StyleSheet.create({
   },
   messagesScrollView: {
     flex: 1,
+    paddingVertical: 12,
+  },
+  scrollViewContainer: {
+    flex: 1,
+    position: "relative",
+  },
+  scrollTopGradient: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 40,
+    zIndex: 10,
+  },
+  scrollBottomGradient: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 40,
+    zIndex: 10,
   },
   tapHintContainer: {
     paddingVertical: 12,
@@ -601,6 +741,21 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 3,
+    overflow: "hidden", // For gradient overlay
+  },
+  fadedMessage: {
+    opacity: 0.5,
+  },
+  gradientOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1,
+  },
+  fadedText: {
+    opacity: 0.7,
   },
   userMessage: {
     backgroundColor: "rgba(0, 122, 255, 0.85)",
