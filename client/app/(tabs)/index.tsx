@@ -1,20 +1,22 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
-  View,
+  Dimensions,
+  Platform,
   StyleSheet,
-  TouchableOpacity,
   Text,
-  Alert,
+  View,
+  TouchableOpacity,
   ScrollView,
+  Animated,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { ThemedText } from "@/components/ThemedText";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+
+import Breathe from "@/components/Breathe";
 import { useStreamingAudioService } from "../../hooks/useStreamingAudioService";
 import { useOpenAI } from "../../hooks/useOpenAI";
 import { usePollyTTS } from "../../hooks/usePollyTTS";
 import { useWakeWord } from "../../hooks/useWakeWord";
-import { Button } from "@/components/Button";
 
 interface Message {
   id: string;
@@ -22,44 +24,73 @@ interface Message {
   textItems: { resultId: string; text: string }[];
   timestamp: Date;
   source?: string;
+  isDummy?: boolean;
 }
 
-export default function HomeScreen() {
-  const [messages, setMessages] = useState<Message[]>([]);
+export default function BreathePage() {
+  const wind = Dimensions.get("window");
+  const width = Platform.OS === "web" ? 440 : wind.width;
+  const height = wind.height;
 
   const generateChatSessionId = () =>
     `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const [chatSessionId, setChatSessionId] = useState<string>(
     generateChatSessionId()
   );
-  const resetChatSession = () => {
-    setChatSessionId(generateChatSessionId());
-  };
 
+  const userTranscriptRef = useRef<string>("");
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      isUser: false,
+      textItems: [
+        {
+          resultId: `item_${Date.now()}`,
+          text: "안녕하세요! 보드게임 어시스턴트 보쌤입니다. '보쌤'이라고 불러주세요!",
+        },
+      ],
+      timestamp: new Date(),
+    },
+    {
+      id: `msg_${Date.now() + 1}_${Math.random().toString(36).substr(2, 9)}`,
+      isUser: true,
+      textItems: [
+        {
+          resultId: `item_${Date.now() + 1}`,
+          text: "보쌤, 오늘 날씨 어때?",
+        },
+      ],
+      timestamp: new Date(),
+    },
+    {
+      id: `msg_${Date.now() + 2}_${Math.random().toString(36).substr(2, 9)}`,
+      isUser: false,
+      textItems: [
+        {
+          resultId: `item_${Date.now() + 2}`,
+          text: "오늘 서울의 날씨는 맑고, 최고 기온은 25도입니다. 야외 활동하기 좋은 날씨네요!",
+        },
+      ],
+      timestamp: new Date(),
+    },
+  ]);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [breatheOffsetY, setBreatheOffsetY] = useState(0);
+  const messagesHeight = useRef(new Animated.Value(160)).current; // Initial compact height
   const currentlyAddingMessageRef = useRef(false);
 
   const {
     isRecording,
     startRecording: startAudioRecording,
     stopRecording: stopAudioRecording,
-    audioLevel,
-    sampleRate,
-    bufferSize,
     sttDatas,
     resetSttDatas,
-    reconnectSocket,
     onVadEnded,
   } = useStreamingAudioService();
 
-  const { chatWithAI, loading: aiLoading, error: aiError } = useOpenAI();
+  const { chatWithAI } = useOpenAI();
 
-  const {
-    speakText,
-    stopSpeaking,
-    isPlaying: isSpeaking,
-    isLoading: ttsLoading,
-    error: ttsError,
-  } = usePollyTTS();
+  const { speakText, stopSpeaking } = usePollyTTS();
 
   // State machine for conversation flow
   type ConversationState =
@@ -72,19 +103,62 @@ export default function HomeScreen() {
   const [conversationState, setConversationState] =
     useState<ConversationState>("IDLE");
 
+  // Add new message with slide up animation
+  const addMessage = (isUser: boolean, content: string) => {
+    const newMessage: Message = {
+      id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      isUser,
+      textItems: [{ resultId: `item_${Date.now()}`, text: content }],
+      timestamp: new Date(),
+      source: isUser ? undefined : "OpenAI GPT-4",
+    };
+
+    setMessages((prev) => [...prev, newMessage]);
+  };
+
+  // Toggle messages expansion
+  const toggleExpanded = () => {
+    setIsExpanded(!isExpanded);
+
+    if (!isExpanded) {
+      // Expanding
+      setBreatheOffsetY(-250);
+      Animated.timing(messagesHeight, {
+        toValue: height - 160, // Almost full screen
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+    } else {
+      // Collapsing
+      setBreatheOffsetY(messages.length > 0 ? -100 : 0);
+      Animated.timing(messagesHeight, {
+        toValue: 160, // Compact height
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+    }
+  };
+
+  // Initialize Breathe position slightly up when messages exist
+  useEffect(() => {
+    if (messages.length > 0 && !isExpanded) {
+      setBreatheOffsetY(-100);
+    } else if (messages.length === 0) {
+      setBreatheOffsetY(0);
+    }
+  }, [messages.length, isExpanded]);
+
   /**
-   * Wake word 감지 및 처리 로직
+   * Wake word detection and handling logic
    */
   const {
-    isListening: isWakeWordListening,
     startListening: startWakeWordListening,
     stopListening: stopWakeWordListening,
-    error: wakeWordError,
   } = useWakeWord(
     async () => {
       if (conversationState !== "IDLE") return;
 
-      console.log("Wake word detected!");
+      console.log("Wake word detected in Breathe page!");
       setConversationState("GREETING");
 
       try {
@@ -113,14 +187,7 @@ export default function HomeScreen() {
     }
   );
 
-  // State가 LISTENING으로 변경되면 녹음 시작
-  useEffect(() => {
-    if (conversationState === "LISTENING" && !isRecording) {
-      startRecording();
-    }
-  }, [conversationState, isRecording]);
-
-  // 컴포넌트 마운트 시 wakeword 리스닝 시작
+  // Start wake word listening on component mount
   useEffect(() => {
     startWakeWordListening();
     return () => {
@@ -128,6 +195,31 @@ export default function HomeScreen() {
     };
   }, []);
 
+  // State가 LISTENING으로 변경되면 녹음 시작
+  useEffect(() => {
+    if (conversationState === "LISTENING" && !isRecording) {
+      addDummyMessage();
+      startRecording();
+    }
+  }, [conversationState, isRecording]);
+
+  /**
+   * Add dummy message to ensure proper message flow
+   */
+  const addDummyMessage = () => {
+    const dummyMessage: Message = {
+      id: `dummy_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      isUser: false,
+      textItems: [{ resultId: `dummy_${Date.now()}`, text: "" }],
+      timestamp: new Date(),
+      isDummy: true,
+    };
+
+    setMessages((prev) => [...prev, dummyMessage]);
+    console.log("Added dummy message:", dummyMessage.id);
+  };
+
+  // STT 데이터를 실시간으로 메시지에 반영
   useEffect(() => {
     if (sttDatas.length === 0) return;
     if (conversationState !== "LISTENING" || !isRecording) return;
@@ -166,8 +258,8 @@ export default function HomeScreen() {
         id: latestData.resultId,
         textItems: [
           {
-            resultId: latestData.resultId,
-            text: latestData.text,
+            resultId: lastMessage?.isDummy ? "-1" : latestData.resultId,
+            text: lastMessage?.isDummy ? "" : latestData.text,
           },
         ],
         isUser: true,
@@ -177,7 +269,7 @@ export default function HomeScreen() {
       console.log("생성된 메시지:", newMessage);
       return [...prev, newMessage];
     });
-  }, [sttDatas]);
+  }, [sttDatas, conversationState, isRecording]);
 
   const startRecording = async () => {
     try {
@@ -186,10 +278,13 @@ export default function HomeScreen() {
         return;
       }
 
+      // Clear previous data before starting new recording
+      userTranscriptRef.current = "";
+      resetSttDatas();
       currentlyAddingMessageRef.current = false;
 
       await startAudioRecording();
-      console.log("Recording started", conversationState, isRecording);
+      console.log("Recording started");
     } catch (err) {
       console.error("Failed to start recording", err);
       setConversationState("IDLE");
@@ -203,221 +298,174 @@ export default function HomeScreen() {
         return;
       }
 
-      console.log(
-        "Recording stopped, current message state:",
-        currentlyAddingMessageRef.current
-      );
+      console.log("Recording stopped");
       setConversationState("PROCESSING");
       await stopAudioRecording();
 
-      const lastMessage = messages[messages.length - 1];
-      console.log("Last message:", lastMessage);
+      // Use functional update to get latest messages
+      setMessages((prevMessages) => {
+        const lastMessage = prevMessages[prevMessages.length - 1];
+        console.log("Last message:", lastMessage);
 
-      if (
-        lastMessage &&
-        lastMessage.isUser &&
-        lastMessage.textItems.length > 0
-      ) {
-        const userText = lastMessage.textItems
-          .map((item) => item.text)
-          .join(" ")
-          .trim();
+        if (
+          lastMessage &&
+          lastMessage.isUser &&
+          lastMessage.textItems.length > 0
+        ) {
+          const userText = lastMessage.textItems
+            .map((item) => item.text)
+            .join(" ")
+            .trim();
 
-        if (userText) {
-          console.log("Sending to OpenAI:", userText);
+          if (userText) {
+            console.log("Sending to OpenAI:", userText);
 
-          const aiResponse = await chatWithAI({
-            message: userText,
-            sessionId: chatSessionId,
-          });
+            // Call AI and add response asynchronously
+            (async () => {
+              try {
+                const aiResponse = await chatWithAI({
+                  message: userText,
+                  sessionId: chatSessionId,
+                });
 
-          if (aiResponse) {
-            const botMessage: Message = {
-              id: `bot_${Date.now()}_${Math.random()
-                .toString(36)
-                .substr(2, 9)}`,
-              isUser: false,
-              textItems: [
-                { resultId: `ai_${Date.now()}`, text: aiResponse.message },
-              ],
-              timestamp: new Date(),
-              source: "OpenAI GPT-4",
-            };
+                if (aiResponse) {
+                  const botMessage: Message = {
+                    id: `bot_${Date.now()}_${Math.random()
+                      .toString(36)
+                      .substr(2, 9)}`,
+                    isUser: false,
+                    textItems: [
+                      {
+                        resultId: `ai_${Date.now()}`,
+                        text: aiResponse.message,
+                      },
+                    ],
+                    timestamp: new Date(),
+                    // source: "OpenAI GPT-4",
+                  };
 
-            setMessages((prev) => [...prev, botMessage]);
+                  setMessages((prev) => [...prev, botMessage]);
 
-            try {
-              setConversationState("SPEAKING");
-              await new Promise((resolve) => setTimeout(resolve, 500));
-              await speakText(aiResponse.message);
-              console.log("TTS 완료, 다음 녹음 준비");
-              setConversationState("LISTENING");
-              return;
-            } catch (err) {
-              console.error("TTS 재생 중 오류:", err);
-            }
+                  setConversationState("SPEAKING");
+                  await new Promise((resolve) => setTimeout(resolve, 500));
+                  await speakText(aiResponse.message);
+                  console.log("TTS completed, ready for next recording");
+                  setConversationState("LISTENING");
+                } else {
+                  setConversationState("IDLE");
+                }
+              } catch (err) {
+                console.error("AI or TTS error:", err);
+                setConversationState("IDLE");
+              }
+            })();
+          } else {
+            console.log("No user text detected, skipping AI call");
+            setConversationState("IDLE");
           }
+        } else {
+          console.log("No valid user message found");
+          setConversationState("IDLE");
         }
-      }
 
-      if (aiError) {
-        console.error("OpenAI API Error:", aiError);
-        Alert.alert("AI 오류", aiError);
-      }
+        return prevMessages;
+      });
 
-      if (ttsError) {
-        console.error("TTS Error:", ttsError);
-        Alert.alert("음성 합성 오류", ttsError);
-      }
-
-      if (wakeWordError) {
-        console.error("Wake Word Error:", wakeWordError);
-        // 웨이크워드 오류는 사용자에게 알리지 않고 콘솔에만 로그
-      }
+      // Clear user transcript and STT data after capturing
+      userTranscriptRef.current = "";
+      resetSttDatas();
     } catch (err) {
       console.error("Failed to stop recording", err);
-      Alert.alert("오류", "음성 처리 중 오류가 발생했습니다.");
+      setConversationState("IDLE");
     } finally {
-      console.log(
-        "stopRecording end, reset flags. Current conversationState:",
-        conversationState
-      );
+      // Always clear transcript and STT data on exit
+      userTranscriptRef.current = "";
+      resetSttDatas();
       currentlyAddingMessageRef.current = false;
     }
-
-    setConversationState("IDLE");
   };
 
-  // VAD ended 이벤트 핸들러 등록
+  // VAD ended event handler
   useEffect(() => {
     if (onVadEnded) {
       onVadEnded((data) => {
-        console.log("🎙️ VAD ended in HomeScreen:", data);
+        console.log("🎙️ VAD ended in Breathe page:", data);
         if (conversationState === "LISTENING" && isRecording) {
           console.log("Stopping recording due to VAD ended event");
           stopRecording();
         }
       });
     }
-  }, [onVadEnded, isRecording, conversationState, stopRecording]);
+  }, [onVadEnded, isRecording, conversationState]);
 
-  const toggleRecording = () => {
-    // IDLE 상태가 아니면 무시
-    if (
-      conversationState === "PROCESSING" ||
-      conversationState === "SPEAKING" ||
-      conversationState === "GREETING"
-    ) {
-      console.log(`현재 상태: ${conversationState}, 요청 무시`);
-      return;
+  // Show conversation state indicator
+  const getStateText = () => {
+    switch (conversationState) {
+      case "IDLE":
+        return '"보쌤"을 불러보세요';
+      case "GREETING":
+        return "인사하는 중...";
+      case "LISTENING":
+        return "듣는 중...";
+      case "PROCESSING":
+        return "AI 처리 중...";
+      case "SPEAKING":
+        return "답변하는 중...";
+      default:
+        return "";
     }
-
-    if (conversationState === "LISTENING" && isRecording) {
-      console.log("녹음 중지 요청");
-      stopRecording();
-    } else if (conversationState === "IDLE") {
-      console.log("녹음 시작 요청");
-      setConversationState("LISTENING");
-    }
-  };
-
-  const handleSourceClick = (source: string) => {
-    Alert.alert("출처 정보", source, [{ text: "확인", style: "default" }]);
-  };
-
-  const resetContext = () => {
-    reconnectSocket();
-    stopSpeaking();
-    stopAudioRecording(false);
-    setMessages([]);
-    resetChatSession();
-    resetSttDatas();
-    setConversationState("IDLE");
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Messages area */}
-      <ScrollView
-        contentContainerStyle={{
-          justifyContent: "center",
-        }}
-        style={styles.messagesContainer}
-        showsVerticalScrollIndicator={false}
-      >
-        {messages.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <View style={styles.micContainer}>
+    <SafeAreaView style={styles.container} edges={[]}>
+      {/* Breathe Animation - Circle position controlled by offsetY */}
+      <View style={styles.breatheContainer}>
+        <Breathe width={width} height={height} offsetY={breatheOffsetY} />
+      </View>
+
+      {/* Status Overlay */}
+      <View style={styles.statusOverlay}>
+        <Text style={styles.statusText}>{getStateText()}</Text>
+      </View>
+
+      {/* Messages Container - Expandable */}
+      {messages.length > 0 && (
+        <Animated.View
+          style={[
+            styles.messagesContainer,
+            {
+              height: messagesHeight,
+            },
+          ]}
+        >
+          {/* Header - Only visible when expanded */}
+          {isExpanded && (
+            <View style={styles.messagesHeader}>
               <TouchableOpacity
-                style={[
-                  styles.micButton,
-                  isRecording && styles.micButtonRecording,
-                ]}
-                onPress={toggleRecording}
+                onPress={toggleExpanded}
+                style={styles.closeButton}
               >
-                <Ionicons
-                  name={isRecording ? "stop" : "mic"}
-                  size={32}
-                  color="white"
-                />
+                <Ionicons name="close" size={24} color="#fff" />
               </TouchableOpacity>
-
-              {conversationState !== "IDLE" && (
-                <Text style={styles.micStatusText}>
-                  {conversationState === "GREETING"
-                    ? "인사하는 중..."
-                    : conversationState === "LISTENING"
-                    ? "듣는 중..."
-                    : conversationState === "PROCESSING"
-                    ? "AI 처리 중..."
-                    : conversationState === "SPEAKING"
-                    ? "답변하는 중..."
-                    : ""}
-                </Text>
-              )}
-
-              {/* Audio level indicator */}
-              {audioLevel > 0 && (
-                <View style={styles.audioLevelContainer}>
-                  <Text style={styles.audioLevelText}>
-                    음성 레벨: {Math.round(audioLevel)}%
-                  </Text>
-                  <View style={styles.audioLevelBar}>
-                    <View
-                      style={[
-                        styles.audioLevelFill,
-                        { width: `${Math.min(100, audioLevel)}%` },
-                      ]}
-                    />
-                  </View>
-                </View>
-              )}
-
-              {/* Streaming info display */}
-              {sampleRate > 0 && (
-                <View style={styles.streamingInfoContainer}>
-                  <Text style={styles.streamingInfoText}>
-                    샘플 레이트: {sampleRate}Hz | 버퍼: {bufferSize}
-                  </Text>
-                </View>
-              )}
             </View>
-            <ThemedText style={styles.emptyText}>
-              "보쌤"을 불러보세요!
-            </ThemedText>
-            <ThemedText style={styles.emptySubText}>
-              {`보드게임 규칙, 전략, 추천 등 무엇이든 물어보세요!\n음성으로 "보쌤"을 불러서 시작할 수도 있어요!`}
-            </ThemedText>
-          </View>
-        ) : (
-          <>
-            {messages
+          )}
+
+          {/* Messages ScrollView */}
+          <ScrollView
+            style={styles.messagesScrollView}
+            showsVerticalScrollIndicator={false}
+            scrollEnabled={isExpanded}
+          >
+            {(isExpanded ? messages : messages.slice(-3))
               .filter((message) => {
+                // Filter out dummy messages and messages with empty text
+                if (message.isDummy) return false;
+
                 const messageText = message.textItems
                   .map((item) => item.text)
                   .join(" ")
                   .trim();
-                return messageText.length > 0; // Only show messages with actual content
+                return messageText.length > 0;
               })
               .map((message) => (
                 <View
@@ -434,15 +482,13 @@ export default function HomeScreen() {
                         ? styles.userMessageText
                         : styles.botMessageText,
                     ]}
+                    numberOfLines={isExpanded ? undefined : 2}
+                    ellipsizeMode={isExpanded ? undefined : "tail"}
                   >
                     {message.textItems.map((item) => item.text).join(" ")}
                   </Text>
-                  {!message.isUser && message.source && (
-                    <TouchableOpacity
-                      style={styles.sourceContainer}
-                      onPress={() => handleSourceClick(message.source!)}
-                      activeOpacity={0.7}
-                    >
+                  {!message.isUser && message.source && isExpanded && (
+                    <View style={styles.sourceContainer}>
                       <Ionicons
                         name="document-text-outline"
                         size={12}
@@ -450,58 +496,24 @@ export default function HomeScreen() {
                         style={styles.sourceIcon}
                       />
                       <Text style={styles.sourceText}>{message.source}</Text>
-                    </TouchableOpacity>
+                    </View>
                   )}
                 </View>
               ))}
+          </ScrollView>
 
-            {/* AI loading state display */}
-            {(conversationState === "PROCESSING" ||
-              conversationState === "SPEAKING") && (
-              <View style={styles.loadingContainer}>
-                <Ionicons name="ellipsis-horizontal" size={24} color="#888" />
-                <Text style={styles.loadingText}>
-                  {conversationState === "PROCESSING"
-                    ? "AI가 답변을 생성하고 있습니다..."
-                    : "답변을 말하고 있습니다..."}
-                </Text>
-              </View>
-            )}
-
-            <View style={styles.recordingButtonContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.micButton,
-                  conversationState === "LISTENING" &&
-                    styles.micButtonRecording,
-                  (conversationState === "PROCESSING" ||
-                    conversationState === "SPEAKING" ||
-                    conversationState === "GREETING") &&
-                    styles.micButtonDisabled,
-                ]}
-                onPress={toggleRecording}
-                disabled={
-                  conversationState === "PROCESSING" ||
-                  conversationState === "SPEAKING" ||
-                  conversationState === "GREETING"
-                }
-              >
-                <Ionicons
-                  name={conversationState === "LISTENING" ? "stop" : "mic"}
-                  size={32}
-                  color="white"
-                />
-              </TouchableOpacity>
-              <Button
-                onPress={resetContext}
-                children="다른 게임 질문하기"
-                variant="secondary"
-                size="sm"
-              />
-            </View>
-          </>
-        )}
-      </ScrollView>
+          {/* Tap hint - Only visible when not expanded */}
+          {!isExpanded && (
+            <TouchableOpacity
+              style={styles.tapHintContainer}
+              onPress={toggleExpanded}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.tapHint}>탭하여 전체 대화 보기</Text>
+            </TouchableOpacity>
+          )}
+        </Animated.View>
+      )}
     </SafeAreaView>
   );
 }
@@ -510,61 +522,104 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#000",
-    paddingHorizontal: 16,
   },
-  messagesContainer: {
-    paddingTop: 20,
+  breatheContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
-  emptyContainer: {
+  statusOverlay: {
+    position: "absolute",
+    bottom: 100,
+    left: 0,
+    right: 0,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 32,
-    marginTop: 40,
   },
-  emptyText: {
-    fontSize: 20,
+  statusText: {
+    color: "#fff",
+    fontSize: 18,
     fontWeight: "600",
-    color: "#fafaf8",
-    textAlign: "center",
-    marginBottom: 8,
+    textShadowColor: "rgba(0, 0, 0, 0.75)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
-  emptySubText: {
+  // Unified Messages Container (Expandable)
+  messagesContainer: {
+    position: "absolute",
+    bottom: 140,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+    overflow: "hidden",
+  },
+  messagesHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    marginBottom: 4,
+  },
+  messagesTitle: {
+    color: "rgba(255, 255, 255, 0.7)",
     fontSize: 14,
-    color: "#888",
-    textAlign: "center",
-    lineHeight: 20,
+    fontWeight: "600",
   },
+  closeButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  messagesScrollView: {
+    flex: 1,
+  },
+  tapHintContainer: {
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  tapHint: {
+    color: "rgba(255, 255, 255, 0.4)",
+    fontSize: 11,
+    textAlign: "center",
+    fontStyle: "italic",
+  },
+  // Message Bubbles
   messageBubble: {
     maxWidth: "85%",
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 20,
-    marginVertical: 8,
+    marginVertical: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   userMessage: {
-    backgroundColor: "#007AFF",
+    backgroundColor: "rgba(0, 122, 255, 0.85)",
     alignSelf: "flex-end",
-    marginLeft: "15%",
   },
   botMessage: {
-    backgroundColor: "#333",
+    backgroundColor: "rgba(51, 51, 51, 0.85)",
     alignSelf: "flex-start",
-    marginRight: "15%",
   },
   messageText: {
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#fafaf8",
   },
   userMessageText: {
     color: "#fafaf8",
   },
   botMessageText: {
     color: "#fafaf8",
-  },
-  sourceText: {
-    color: "#ccc",
-    fontSize: 12,
-    fontStyle: "italic",
   },
   sourceContainer: {
     flexDirection: "row",
@@ -578,102 +633,9 @@ const styles = StyleSheet.create({
   sourceIcon: {
     marginRight: 2,
   },
-  loadingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 16,
-  },
-  loadingText: {
-    color: "#888",
-    marginLeft: 8,
-    fontSize: 14,
-  },
-  micContainer: {
-    alignItems: "center",
-  },
-  micButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#007AFF",
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  micButtonRecording: {
-    backgroundColor: "#FF3B30",
-  },
-  micButtonDisabled: {
-    backgroundColor: "#666",
-  },
-  micStatusText: {
-    color: "#888",
-    fontSize: 14,
-    marginTop: 12,
-    textAlign: "center",
-  },
-  recordingButtonContainer: {
-    gap: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 40,
-  },
-  audioLevelContainer: {
-    marginTop: 12,
-    alignItems: "center",
-    width: "80%",
-  },
-  audioLevelText: {
-    color: "#888",
+  sourceText: {
+    color: "#ccc",
     fontSize: 12,
-    marginBottom: 4,
-  },
-  audioLevelBar: {
-    width: "100%",
-    height: 4,
-    backgroundColor: "#333",
-    borderRadius: 2,
-    overflow: "hidden",
-  },
-  audioLevelFill: {
-    height: "100%",
-    backgroundColor: "#007AFF",
-    borderRadius: 2,
-  },
-  streamingInfoContainer: {
-    marginTop: 12,
-    alignItems: "center",
-  },
-  streamingInfoText: {
-    color: "#666",
-    fontSize: 10,
-    textAlign: "center",
-    marginVertical: 1,
-  },
-  wakeWordIndicator: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    backgroundColor: "rgba(0, 122, 255, 0.1)",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(0, 122, 255, 0.3)",
-  },
-  wakeWordText: {
-    color: "#007AFF",
-    fontSize: 12,
-    marginLeft: 4,
-    fontWeight: "500",
+    fontStyle: "italic",
   },
 });
