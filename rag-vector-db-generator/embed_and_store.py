@@ -60,8 +60,8 @@ def process_single_rulebook(game_name: str, file_path: Path):
     # 2-2. 각 섹션을 다시 작은 청크로 분할
     print("\n3️⃣ 각 섹션을 2차 분할 중...")
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=500,  # 청크 크기 (1000자 = 약 2-3개 문단)
-        chunk_overlap=100,  # 청크 간 겹침 (문맥 연결)
+        chunk_size=300,  # 청크 크기 (300자)
+        chunk_overlap=50,  # 청크 간 겹침 (문맥 연결)
         separators=["\n\n", "\n", " ", ""],
     )
     splits = text_splitter.split_documents(markdown_splits)
