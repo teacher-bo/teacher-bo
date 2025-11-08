@@ -13,7 +13,7 @@ class PromptTemplate:
 
     Evidence rules:
     - Use only provided Context (rulebook excerpts) as primary evidence.
-    - If multiple candidate evidences exist, select the most central ones and LIST THEM IN DESCENDING ORDER OF IMPORTANCE (most critical first). Avoid redundancy.
+    - If multiple candidate evidences exist, select the most critical one or combine them into a single quoted string.
     - Keep sourced evidence strictly separate from any inference.
 
     Output format (use exactly these fields and order):
