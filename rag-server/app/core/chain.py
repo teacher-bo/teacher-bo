@@ -45,7 +45,7 @@ def create_rag_chain(
     
     # LLM 설정
     model = ChatOpenAI(
-        temperature=0.1,
+        temperature=0.3,
         model_name="gpt-4o-mini",
     )
     
