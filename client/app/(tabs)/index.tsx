@@ -136,6 +136,15 @@ export default function BreathePage() {
     }
   }, [messages.length, isExpanded]);
 
+  // Scroll to bottom when messages change (if expanded)
+  useEffect(() => {
+    if (isExpanded && messages.length > 0) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [messages, isExpanded]);
+
   /**
    * Wake word detection and handling logic
    */
@@ -330,7 +339,7 @@ export default function BreathePage() {
                     ],
                     timestamp: new Date(),
                     source: aiResponse.source,
-                    page : aiResponse.page
+                    page: aiResponse.page,
                     // source: "OpenAI GPT-4",
                   };
 
@@ -510,21 +519,33 @@ export default function BreathePage() {
                                 color="#aaa"
                                 style={styles.sourceIcon}
                               />
-                              <Text style={styles.sourceText}>
+                              <Text style={styles.sourceText} numberOfLines={1}>
                                 {message.source}
                               </Text>
                               {message.page && message.page !== "null" && (
                                 <>
-                                  <Text style={styles.sourceSeparator}> • </Text>
+                                  <Text style={styles.sourceSeparator}>
+                                    {" "}
+                                    •{" "}
+                                  </Text>
                                   <TouchableOpacity
                                     onPress={() => {
                                       // TODO: Replace with actual rulebook URL
                                       const rulebookUrl = `https://example.com/rulebooks/${message.source}/page/${message.page}`;
-                                      Linking.openURL(rulebookUrl).catch((err) =>
-                                        console.error("Failed to open URL:", err)
+                                      Linking.openURL(rulebookUrl).catch(
+                                        (err) =>
+                                          console.error(
+                                            "Failed to open URL:",
+                                            err
+                                          )
                                       );
                                     }}
-                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                    hitSlop={{
+                                      top: 10,
+                                      bottom: 10,
+                                      left: 10,
+                                      right: 10,
+                                    }}
                                   >
                                     <Text style={styles.pageLink}>
                                       p.{message.page}
