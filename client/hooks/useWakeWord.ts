@@ -232,21 +232,39 @@ export const useWakeWord = (
           setTimeout(() => startListening(), 500);
         }
       } else {
-        // expo-speech-recognition for iOS/Android
         const result =
           await ExpoSpeechRecognitionModule.requestPermissionsAsync();
         if (!result.granted) {
           throw new Error("Speech recognition permission not granted");
         }
 
-        await ExpoSpeechRecognitionModule.start({
+        ExpoSpeechRecognitionModule.start({
           lang: options.language || "ko-KR",
-          interimResults: true,
+          interimResults: true, // Real-time results for wake word detection
           maxAlternatives: 1,
-          continuous: options.continuous || false,
-          requiresOnDeviceRecognition: false,
-          addsPunctuation: false,
-          contextualStrings: options.wakeWords,
+          continuous: options.continuous !== false, // Keep listening until stopped
+          requiresOnDeviceRecognition: false, // Use cloud for better accuracy
+          addsPunctuation: false, // Clean text for easier matching
+          contextualStrings: options.wakeWords, // Boost recognition of wake words
+          // Android-specific: Increase silence threshold for better continuous listening
+          androidIntentOptions:
+            Platform.OS === "android"
+              ? {
+                  EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 5000, // 5 seconds of silence before stopping
+                  EXTRA_MASK_OFFENSIVE_WORDS: false, // Don't filter any words
+                }
+              : undefined,
+          // iOS-specific: Optimize for voice command recognition
+          // iosTaskHint: Platform.OS === "ios" ? "search" : undefined, // Optimized for short phrases like wake words
+          // Only set audio category on real iOS devices (not simulator)
+          iosCategory:
+            Platform.OS === "ios"
+              ? {
+                  category: "playAndRecord",
+                  categoryOptions: ["defaultToSpeaker", "allowBluetooth"],
+                  mode: "default", // Use 'default' mode instead of 'measurement' for better simulator compatibility
+                }
+              : undefined,
         });
       }
     } catch (error: any) {
