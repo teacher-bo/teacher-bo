@@ -5,29 +5,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def clean_directories():
-    """Clean target-text and final-rulebook directories before processing"""
-    base_dir = Path(__file__).parent
-    
-    dirs_to_clean = [
-        base_dir / "rulebooks" / "target-text",
-        base_dir / "rulebooks" / "final-rulebook"
-    ]
-    
-    print("🧹 Cleaning directories...")
-    for dir_path in dirs_to_clean:
-        if dir_path.exists():
-            shutil.rmtree(dir_path)
-        dir_path.mkdir(parents=True, exist_ok=True)
-        print(f"  ✅ Cleaned: {dir_path}")
-    print()
-
 def get_game_names_from_pdfs():
     """Extract game names from PDF files in target-pdf folders"""
     base_dir = Path(__file__).parent
     pdf_dirs = [
-        base_dir / "rulebooks" / "target-pdf" / "by-ocr",
-        base_dir / "rulebooks" / "target-pdf" / "by-text"
+        base_dir / "rulebooks" / "target-pdf" / "by-ocr"
     ]
     
     game_names = {}
@@ -45,6 +27,31 @@ def get_game_names_from_pdfs():
             }
     
     return game_names
+
+def clean_directories(game_names: dict):
+    """Clean only files related to game_names in target-text and final-rulebook directories"""
+    base_dir = Path(__file__).parent
+    
+    dirs_to_clean = [
+        (base_dir / "rulebooks" / "target-text", ".rulebook_text.txt"),
+        (base_dir / "rulebooks" / "final-rulebook", ".rulebook.txt")
+    ]
+    
+    print("🧹 Cleaning files for processing games...")
+    
+    for dir_path, suffix in dirs_to_clean:
+        dir_path.mkdir(parents=True, exist_ok=True)
+        
+        for game_name in game_names.keys():
+            file_pattern = f"{game_name}{suffix}"
+            file_path = dir_path / file_pattern
+            
+            if file_path.exists():
+                file_path.unlink()
+                print(f"  🗑️  Deleted: {file_path.name}")
+        
+        print(f"  ✅ Cleaned: {dir_path}")
+    print()
 
 def process_pdf_to_text(game_name: str, pdf_path: Path, source_type: str):
     """Process PDF to text using appropriate loader"""
@@ -108,21 +115,21 @@ def main():
     print("=" * 80)
     print()
     
-    # Step 1: Clean directories
-    clean_directories()
-    
-    # Step 2: Get game names from PDFs
+    # Step 1: Get game names from PDFs
     print("🔍 Scanning for rulebook PDFs...")
     game_names = get_game_names_from_pdfs()
     
     if not game_names:
         print("❌ No rulebook PDFs found in target-pdf folders!")
         print("   Please add PDFs in format: {game_name}.rulebook.pdf")
-        print("   to rulebooks/target-pdf/by-ocr/ or rulebooks/target-pdf/by-text/")
+        print("   to rulebooks/target-pdf/by-ocr/")
         return
     
     print(f"  ✅ Found {len(game_names)} game(s): {', '.join(game_names.keys())}")
     print()
+    
+    # Step 2: Clean only files for games to be processed
+    clean_directories(game_names)
     
     # Step 3-4: Process each game
     for game_name, info in game_names.items():
