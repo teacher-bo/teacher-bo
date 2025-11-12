@@ -21,4 +21,9 @@ AVAILABLE_GAMES: dict[str, GameConfig] = {
         "db_path": "./chroma_db/rummikub",
         "collection": "rummikub_rulebook"
     },
+    "halligalli": {
+        "name": "할리갈리",
+        "db_path": "./chroma_db/halligalli",
+        "collection": "halligalli_rulebook"
+    },
 }
