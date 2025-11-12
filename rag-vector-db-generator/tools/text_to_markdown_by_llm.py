@@ -23,7 +23,7 @@ class TextToMarkdownConverter:
 당신은 게임 규칙서 편집자입니다. 당신의 임무는 다음과 같습니다:
 1. 입력 받은 텍스트에서 게임 규칙과 게임 플레이 관련 콘텐츠는 모두 원문 그대로 유지합니다 (절대로 없애거나, 바꾸지 말 것)
 2. (광고, 보드게임 회사 정보)를 삭제합니다
-3. reference format과 유사한 markdown 형식으로 콘텐츠를 구성합니다
+3. 명확한 markdown 형식으로 콘텐츠를 구성합니다
 4. # 기호가 있는 명확한 제목 사용. 각 문단 처음에는 '# <title/subtitle> (n페이지부터)' 형식으로 작성하세요.
 5. 모든 출력은 한국어로 작성합니다
 """
@@ -44,17 +44,12 @@ class TextToMarkdownConverter:
         
         Args:
             text_content: Raw text content to convert
-            reference_format: Reference markdown format for style guidance
+            reference_format: Reference markdown format for style guidance (not used)
             
         Returns:
             Converted markdown text
         """
-        user_prompt = f"""Reference format example:
-{reference_format}
-
----
-
-Now, process this text and extract only the game rules in a similar markdown format:
+        user_prompt = f"""Process this text and extract only the game rules in markdown format:
 
 {text_content}
 
@@ -82,7 +77,7 @@ Remember:
         Args:
             input_path: Input text file path
             output_path: Output markdown file path
-            reference_path: Optional reference markdown file path
+            reference_path: Optional reference markdown file path (not used, kept for compatibility)
             
         Returns:
             Path to output file
@@ -90,13 +85,8 @@ Remember:
         # Read input
         text_content = self.read_file(input_path)
         
-        # Read reference if provided
-        reference_format = ""
-        if reference_path and reference_path.exists():
-            reference_format = self.read_file(reference_path)
-        
-        # Convert
-        markdown_content = self.convert(text_content, reference_format)
+        # Convert (reference_path is ignored)
+        markdown_content = self.convert(text_content)
         
         # Save
         self.save_file(markdown_content, output_path)
