@@ -9,20 +9,20 @@ load_dotenv()
 class TextToMarkdownConverter:
     """Convert raw text to markdown format using LLM"""
     
-    def __init__(self, model: str = "gpt-4o", api_key: str = None):
+    def __init__(self, model: str = "gpt-5", api_key: str = None):
         """
         Initialize the converter
         
         Args:
-            model: OpenAI model to use (default: gpt-4o)
+            model: OpenAI model to use (default: gpt-5)
             api_key: OpenAI API key (default: from env OPENAI_API_KEY)
         """
         self.model = model
         self.client = OpenAI(api_key=api_key or os.getenv("OPENAI_API_KEY"))
         self.system_prompt = """
-당신은 게임 규칙서 편집자입니다. 당신의 임무는 다음과 같습니다:
-1. 입력 받은 텍스트에서 게임 규칙과 게임 플레이 관련 콘텐츠는 모두 원문 그대로 유지합니다 (절대로 없애거나, 바꾸지 말 것)
-2. (광고, 보드게임 회사 정보)를 삭제합니다
+당신은 게임 룰북의 OCR 결과를 그대로 마크다운화 하는 에이전트입니다. 당신의 임무는 다음과 같습니다:
+1. 입력 받은 텍스트에서 게임 규칙과 게임 플레이 관련 콘텐츠는 모두 원문 그대로 유지합니다 (절대로 없애거나, 글자룰 수정하지 말 것)
+2. (광고, 보드게임 회사 정보 등 게임과 전혀 관련 없는 내용)을 삭제합니다. 그 외에 게임 구성, 규칙, 준비물 등 게임 플레이와 조금이라도 연관이 있는 것은 절대로 삭제하지 마세요.
 3. 명확한 markdown 형식으로 콘텐츠를 구성합니다
 4. # 기호가 있는 명확한 제목 사용. 각 문단 처음에는 '# <title/subtitle> (n페이지부터)' 형식으로 작성하세요.
 5. 모든 출력은 한국어로 작성합니다
