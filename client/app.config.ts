@@ -9,12 +9,11 @@ dotenvConfig();
 
 const PACKAGE_NAME = "at.leed.teacherbo";
 const buildVersion = packageJson.version;
-const buildNumber = `000${buildVersion.replace(/\./g, "")}`;
 
 const config: ExpoConfig = {
   scheme: PACKAGE_NAME,
   name: "TeacherBo",
-  slug: "teacher-bo",
+  slug: "teacher-bo-xqj8z4chyh60b5dwb6ih",
   version: buildVersion,
   platforms: ["ios", "android", "web"],
   orientation: "portrait",
@@ -27,7 +26,6 @@ const config: ExpoConfig = {
     icon: "./assets/icons/ios-light.png",
     supportsTablet: true,
     bundleIdentifier: PACKAGE_NAME,
-    buildNumber,
     infoPlist: {
       UIBackgroundModes: [
         "background-fetch",
@@ -48,7 +46,6 @@ const config: ExpoConfig = {
   },
   android: {
     package: PACKAGE_NAME,
-    versionCode: 1,
     adaptiveIcon: {
       foregroundImage: "./assets/icons/ios-light.png",
       backgroundColor: "#fafaf8",
@@ -136,7 +133,7 @@ const config: ExpoConfig = {
       origin: false,
     },
     eas: {
-      projectId: "ad9844e2-900c-4aa1-aa57-873f3079d2ae",
+      projectId: "b36d2ffb-4305-41c3-a7a3-a204b6d29862",
     },
   },
 };
