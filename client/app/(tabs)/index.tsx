@@ -153,23 +153,28 @@ export default function BreathePage() {
     stopListening: stopWakeWordListening,
   } = useWakeWord(
     async () => {
-      if (conversationState !== "IDLE") return;
+      if (conversationState !== "IDLE") {
+        console.log(
+          "⚠️ Wake word ignored, not in IDLE state:",
+          conversationState
+        );
+        return;
+      }
 
-      console.log("Wake word detected in Breathe page!");
+      await stopWakeWordListening();
       setConversationState("GREETING");
 
       try {
         const text = `
           <speak xml:lang="ko-KR">
             <prosody pitch="+2%" volume="x-loud"> 안녕하세요! </prosody>
-            <break time="100ms"/>
+            <break time="300ms"/>
             <prosody pitch="+8%" rate="fast"> 무엇을 도와드릴까요? </prosody>
           </speak>
         `;
 
         await speakText(text);
-
-        console.log("Speech completed, starting recording...");
+        await new Promise((resolve) => setTimeout(resolve, 500));
         setConversationState("LISTENING");
       } catch (err) {
         console.error("Greeting TTS failed", err);
@@ -285,6 +290,7 @@ export default function BreathePage() {
     } catch (err) {
       console.error("Failed to start recording", err);
       setConversationState("IDLE");
+      await startWakeWordListening();
     }
   };
 
@@ -348,23 +354,30 @@ export default function BreathePage() {
                   setConversationState("SPEAKING");
                   await new Promise((resolve) => setTimeout(resolve, 500));
                   await speakText(aiResponse.message);
-                  console.log("TTS completed, ready for next recording");
+                  console.log(
+                    "✅ TTS completed, returning to LISTENING for next question"
+                  );
                   setConversationState("LISTENING");
                 } else {
+                  console.log("No AI response, returning to IDLE");
                   setConversationState("IDLE");
+                  startWakeWordListening();
                 }
               } catch (err) {
                 console.error("AI or TTS error:", err);
                 setConversationState("IDLE");
+                startWakeWordListening();
               }
             })();
           } else {
             console.log("No user text detected, skipping AI call");
             setConversationState("IDLE");
+            startWakeWordListening();
           }
         } else {
           console.log("No valid user message found");
           setConversationState("IDLE");
+          startWakeWordListening();
         }
 
         return prevMessages;
@@ -376,6 +389,7 @@ export default function BreathePage() {
     } catch (err) {
       console.error("Failed to stop recording", err);
       setConversationState("IDLE");
+      await startWakeWordListening();
     } finally {
       // Always clear transcript and STT data on exit
       userTranscriptRef.current = "";

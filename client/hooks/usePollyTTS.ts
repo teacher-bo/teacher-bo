@@ -117,22 +117,25 @@ export const usePollyTTS = () => {
    */
   const waitForPlaybackComplete = useCallback((): Promise<void> => {
     return new Promise((resolve) => {
+      let hasStarted = false;
+
       const checkInterval = setInterval(() => {
-        if (!player.playing) {
+        if (player.playing && !hasStarted) {
+          hasStarted = true;
+        }
+
+        if (hasStarted && !player.playing) {
           clearInterval(checkInterval);
           resolve();
         }
       }, 100);
 
-      // 안전장치: 30초 후 강제 완료
       setTimeout(() => {
         clearInterval(checkInterval);
-        console.log("Audio playback timeout, forcing completion");
         resolve();
       }, 30000);
     });
   }, [player]);
-
   /**
    * 텍스트를 음성으로 변환하고 재생 완료까지 대기
    */

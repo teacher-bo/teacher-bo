@@ -111,10 +111,37 @@ export const useWakeWord = (
     [options.wakeWords, onWakeWordDetected]
   );
 
-  // expo-speech-recognition 이벤트 핸들러 (iOS/Android)
+  const shouldContinueRef = useRef(false);
+
+  const startRecognition = useCallback(async () => {
+    await ExpoSpeechRecognitionModule.start({
+      lang: options.language || "ko-KR",
+      interimResults: true,
+      maxAlternatives: 1,
+      continuous: true,
+      requiresOnDeviceRecognition: false,
+      addsPunctuation: false,
+      contextualStrings: options.wakeWords,
+      androidIntentOptions:
+        Platform.OS === "android"
+          ? {
+              EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 5000,
+              EXTRA_MASK_OFFENSIVE_WORDS: false,
+            }
+          : undefined,
+      iosCategory:
+        Platform.OS === "ios"
+          ? {
+              category: "playAndRecord",
+              categoryOptions: ["defaultToSpeaker", "allowBluetooth"],
+              mode: "default",
+            }
+          : undefined,
+    });
+  }, [options.language, options.wakeWords]);
+
   useSpeechRecognitionEvent("start", () => {
     if (Platform.OS !== "web") {
-      console.log("Speech: Recognition started");
       setIsListening(true);
       setError(null);
     }
@@ -122,16 +149,38 @@ export const useWakeWord = (
 
   useSpeechRecognitionEvent("end", () => {
     if (Platform.OS !== "web") {
-      console.log("Speech: Recognition ended");
       setIsListening(false);
+
+      if (shouldContinueRef.current) {
+        setTimeout(async () => {
+          if (!shouldContinueRef.current) return;
+
+          try {
+            await startRecognition();
+          } catch (err) {
+            console.error("Failed to restart speech recognition:", err);
+            shouldContinueRef.current = false;
+          }
+        }, 500);
+      }
     }
   });
 
   useSpeechRecognitionEvent("error", (event) => {
     if (Platform.OS !== "web") {
-      console.error("Speech: Recognition error", event);
+      console.error("Speech recognition error:", event);
       setError(event.error || "Speech recognition error");
       setIsListening(false);
+
+      if (shouldContinueRef.current && event.error !== "no-speech") {
+        setTimeout(async () => {
+          try {
+            await startRecognition();
+          } catch (err) {
+            console.error("Failed to restart after error:", err);
+          }
+        }, 500);
+      }
     }
   });
 
@@ -140,7 +189,6 @@ export const useWakeWord = (
       const results = event.results;
       if (results && results.length > 0) {
         const transcript = results.map((result) => result.transcript).join(" ");
-        console.log("Speech: Result:", transcript);
         checkForWakeWords(transcript);
       }
     }
@@ -223,6 +271,7 @@ export const useWakeWord = (
   const startListening = useCallback(async (): Promise<void> => {
     try {
       setError(null);
+      shouldContinueRef.current = true; // continuous 모드 활성화
 
       if (Platform.OS === "web") {
         if (recognitionRef.current) {
@@ -238,6 +287,7 @@ export const useWakeWord = (
           throw new Error("Speech recognition permission not granted");
         }
 
+        console.log("✅ Speech recognition starting with continuous mode");
         ExpoSpeechRecognitionModule.start({
           lang: options.language || "ko-KR",
           interimResults: true, // Real-time results for wake word detection
@@ -271,18 +321,27 @@ export const useWakeWord = (
       console.error("Failed to start listening:", error);
       setError(error.message || "Failed to start voice recognition");
       setIsListening(false);
+      shouldContinueRef.current = false;
     }
   }, [options.language, options.continuous, options.wakeWords]);
 
   const stopListening = useCallback(async (): Promise<void> => {
     try {
+      console.log(
+        "🛑 Stopping speech recognition, setting shouldContinue = false"
+      );
+      shouldContinueRef.current = false; // continuous 모드 비활성화
+
       if (Platform.OS === "web") {
         if (recognitionRef.current) {
           recognitionRef.current.stop();
         }
       } else {
         await ExpoSpeechRecognitionModule.stop();
+        console.log("✅ Speech recognition stopped");
       }
+
+      setIsListening(false);
     } catch (error: any) {
       console.error("Failed to stop listening:", error);
       setError(error.message || "Failed to stop voice recognition");
