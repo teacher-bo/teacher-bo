@@ -49,15 +49,16 @@ export const useSocket = ({
     console.log(`🔌 Connecting to Socket.IO: ${socketUrl}`);
 
     socketRef.current = io(socketUrl, {
-      transports: ["websocket", "polling"], // Add polling fallback for web
+      transports: ["websocket", "polling"],
       forceNew: true,
-      timeout: 20000, // Increase timeout
+      timeout: 20000,
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
-      // Web-specific optimizations
+      reconnectionDelayMax: 5000,
       upgrade: true,
       rememberUpgrade: false,
+      autoConnect: true,
     });
 
     const socket = socketRef.current;
