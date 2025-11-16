@@ -25,7 +25,7 @@ load_dotenv()
 _boto3_session: Optional[boto3.session.Session] = None
 _dynamodb_resource = None
 
-MAX_HISTORY = 3 * 2 # 총 3개의 질문,답변을 저장 (질문/답변 각각 갯수로 쳐서 2 곱해야함)
+MAX_HISTORY = 1 * 2 # 총 1개의 질문,답변을 저장 (질문/답변 각각 갯수로 쳐서 2 곱해야함)
 
 def _get_boto3_session() -> boto3.session.Session:
     """Create or return a cached boto3 Session.
