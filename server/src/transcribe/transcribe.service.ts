@@ -15,14 +15,17 @@ export class TranscribeService {
   private readonly logger = new Logger(TranscribeService.name);
   private readonly transcribeStreamingClient: TranscribeStreamingClient;
   private readonly eventEmitter = new EventEmitter();
-  private readonly vadServiceUrl = 'http://localhost:1003';
 
   // 세션별 오디오 스트림 관리
   private audioBuffers = new Map<string, Buffer[]>();
   private isTranscribing = new Map<string, boolean>();
   private transcribePromises = new Map<string, Promise<void>>();
 
+  private vadServiceUrl: string;
+
   constructor(private configService: ConfigService) {
+    this.vadServiceUrl = this.configService.get<string>('VAD_SERVER_URL');
+
     const awsConfig = {
       region: this.configService.get('AWS_REGION'),
       credentials: {
