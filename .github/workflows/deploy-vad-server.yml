@@ -50,6 +50,7 @@ jobs:
             requirements.txt \
             Procfile \
             app/ \
+            .platform/ \
             .ebextensions/ \
             .ebignore \
             .env \
