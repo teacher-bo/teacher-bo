@@ -52,6 +52,17 @@ async function bootstrap() {
   // Resolve '413 Request Entity Too Large' on file upload
   app.use(json({ limit: '50mb' }));
 
+  app
+    .getHttpAdapter()
+    .getInstance()
+    .get('/health', (req, res) => {
+      res.json({
+        status: 'healthy',
+        service: 'Board Game Assistant',
+        version: '1.0.0',
+      });
+    });
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

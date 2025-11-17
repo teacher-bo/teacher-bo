@@ -4,6 +4,10 @@
   "private": true,
   "description": "Teacher Bo",
   "packageManager": "yarn@1.22.22",
+  "engines": {
+    "node": ">=18.0.0",
+    "yarn": "1.22.22"
+  },
   "scripts": {
     "prebuild": "rimraf dist",
     "build": "nest build",
