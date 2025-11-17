@@ -27,19 +27,6 @@ const config: ExpoConfig = {
     supportsTablet: true,
     bundleIdentifier: PACKAGE_NAME,
     infoPlist: {
-      UIBackgroundModes: [
-        "background-fetch",
-        "background-processing",
-        "remote-notification",
-      ],
-      NSUserTrackingUsageDescription:
-        "이 앱은 맞춤형 보드게임 추천을 위해 사용자 데이터를 수집합니다.",
-      NSCameraUsageDescription:
-        "보드게임 사진을 촬영하기 위해 카메라 접근이 필요합니다.",
-      NSPhotoLibraryUsageDescription:
-        "보드게임 이미지를 선택하기 위해 사진 라이브러리 접근이 필요합니다.",
-      NSLocationWhenInUseUsageDescription:
-        "주변 보드게임 카페를 찾기 위해 위치 정보가 필요합니다.",
       NSMicrophoneUsageDescription:
         "보드게임 규칙을 음성으로 검색하기 위해 마이크 접근이 필요합니다.",
     },
