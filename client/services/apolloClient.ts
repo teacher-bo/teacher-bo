@@ -9,19 +9,17 @@ import { getMainDefinition } from "@apollo/client/utilities";
 import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
 import { createClient } from "graphql-ws";
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || "";
+const API_URL = process.env.EXPO_PUBLIC_URL || "";
 
 // HTTP Link
 const httpLink = createHttpLink({
-  uri: `${process.env.EXPO_PUBLIC_URL}/api/graphql`,
+  uri: `${API_URL}/api/graphql`,
 });
 
 // WebSocket Link for subscriptions
 const wsLink = new GraphQLWsLink(
   createClient({
-    url: __DEV__
-      ? "ws://localhost:1001/graphql" // Metro 서버를 통한 프록시
-      : `${BASE_URL.replace("http", "ws")}/api/graphql`, // 프로덕션
+    url: `${API_URL.replace("http", "ws")}/api/graphql`,
     shouldRetry: () => true,
   })
 );
