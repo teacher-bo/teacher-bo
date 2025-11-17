@@ -8,8 +8,9 @@ import {
 import { getMainDefinition } from "@apollo/client/utilities";
 import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
 import { createClient } from "graphql-ws";
+import { ENV } from "../utils/env";
 
-const API_URL = process.env.EXPO_PUBLIC_URL || "";
+const API_URL = ENV.API_URL;
 
 // HTTP Link
 const httpLink = createHttpLink({

@@ -5,6 +5,7 @@ import {
   AudioDataEvent,
 } from "@siteed/expo-audio-studio";
 import { useSocket } from "./useSocket";
+import { ENV } from "../utils/env";
 
 interface UseAudioServiceReturn {
   isRecording: boolean;
@@ -56,7 +57,7 @@ export const useStreamingAudioService = (): UseAudioServiceReturn => {
     disconnect: disconnectSocket,
     reconnect: reconnectSocket,
   } = useSocket({
-    socketUrl: process.env.EXPO_PUBLIC_API_URL!,
+    socketUrl: ENV.API_BASE_URL,
     onTranscriptionResult: (data) => {
       setSttDatas((prev) => {
         const exists = prev.find((d) => d.resultId === data.resultId);

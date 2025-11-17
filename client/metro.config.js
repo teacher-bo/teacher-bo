@@ -7,6 +7,9 @@ const { config: envConfig } = require("dotenv");
 
 envConfig({ path: ".env" });
 
+const API_PORT = process.env.EXPO_PUBLIC_API_PORT || "1002";
+const API_URL = `http://localhost:${API_PORT}`;
+
 const config = getDefaultConfig(__dirname);
 
 const ALIASES = {
@@ -14,12 +17,12 @@ const ALIASES = {
 };
 
 const apiProxy = createProxyMiddleware({
-  target: process.env.EXPO_PUBLIC_API_URL,
+  target: API_URL,
   // pathRewrite: {
   //   "^/": "/api/",
   // },
   changeOrigin: true,
-  // ws: true,
+  ws: true,
   secure: false,
   logLevel: "debug",
   onError: (err, req, res) => {
@@ -32,9 +35,7 @@ const apiProxy = createProxyMiddleware({
     }
   },
   onProxyReq: (proxyReq, req, res) => {
-    console.log(
-      `[PROXY] ${req.method} ${req.url} -> ${process.env.EXPO_PUBLIC_API_URL}${req.url}`
-    );
+    console.log(`[PROXY] ${req.method} ${req.url} -> ${API_URL}${req.url}`);
   },
   onProxyRes: (proxyRes, req, res) => {
     console.log(
