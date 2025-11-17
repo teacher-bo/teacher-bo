@@ -114,7 +114,7 @@ export const useWakeWord = (
   const shouldContinueRef = useRef(false);
 
   const startRecognition = useCallback(async () => {
-    await ExpoSpeechRecognitionModule.start({
+    const config: any = {
       lang: options.language || "ko-KR",
       interimResults: true,
       maxAlternatives: 1,
@@ -122,22 +122,28 @@ export const useWakeWord = (
       requiresOnDeviceRecognition: false,
       addsPunctuation: false,
       contextualStrings: options.wakeWords,
-      androidIntentOptions:
-        Platform.OS === "android"
-          ? {
-              EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 5000,
-              EXTRA_MASK_OFFENSIVE_WORDS: false,
-            }
-          : undefined,
-      iosCategory:
-        Platform.OS === "ios"
-          ? {
-              category: "playAndRecord",
-              categoryOptions: ["defaultToSpeaker", "allowBluetooth"],
-              mode: "default",
-            }
-          : undefined,
-    });
+    };
+
+    if (Platform.OS === "android") {
+      config.androidIntentOptions = {
+        EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 5000,
+        EXTRA_MASK_OFFENSIVE_WORDS: false,
+      };
+    }
+
+    if (Platform.OS === "ios") {
+      config.iosCategory = {
+        category: "playAndRecord",
+        categoryOptions: [
+          "defaultToSpeaker",
+          "allowBluetooth",
+          "mixWithOthers",
+        ],
+        mode: "spokenAudio",
+      };
+    }
+
+    ExpoSpeechRecognitionModule.start(config);
   }, [options.language, options.wakeWords]);
 
   useSpeechRecognitionEvent("start", () => {
@@ -168,18 +174,42 @@ export const useWakeWord = (
 
   useSpeechRecognitionEvent("error", (event) => {
     if (Platform.OS !== "web") {
-      console.error("Speech recognition error:", event);
-      setError(event.error || "Speech recognition error");
+      const errorType = event.error || "unknown";
+      const silentErrors = ["no-speech", "aborted"];
+      const criticalErrors = ["audio-capture", "not-allowed"];
+
+      if (silentErrors.includes(errorType)) {
+        console.debug(
+          `Speech recognition: ${errorType} (will retry if active)`
+        );
+      } else {
+        console.error("Speech recognition error:", event);
+      }
+
+      if (criticalErrors.includes(errorType)) {
+        shouldContinueRef.current = false;
+        if (errorType === "audio-capture") {
+          setError("마이크 접근 오류가 발생했습니다. 앱을 재시작해주세요.");
+        } else if (errorType === "not-allowed") {
+          setError("마이크 권한이 거부되었습니다.");
+        }
+      } else if (!silentErrors.includes(errorType)) {
+        setError(`음성 인식 오류: ${errorType}`);
+      }
+
       setIsListening(false);
 
-      if (shouldContinueRef.current && event.error !== "no-speech") {
+      if (shouldContinueRef.current && silentErrors.includes(errorType)) {
         setTimeout(async () => {
+          if (!shouldContinueRef.current) return;
+
           try {
             await startRecognition();
           } catch (err) {
             console.error("Failed to restart after error:", err);
+            shouldContinueRef.current = false;
           }
-        }, 500);
+        }, 1000);
       }
     }
   });
@@ -271,7 +301,7 @@ export const useWakeWord = (
   const startListening = useCallback(async (): Promise<void> => {
     try {
       setError(null);
-      shouldContinueRef.current = true; // continuous 모드 활성화
+      shouldContinueRef.current = true;
 
       if (Platform.OS === "web") {
         if (recognitionRef.current) {
@@ -288,34 +318,37 @@ export const useWakeWord = (
         }
 
         console.log("✅ Speech recognition starting with continuous mode");
-        ExpoSpeechRecognitionModule.start({
+
+        const config: any = {
           lang: options.language || "ko-KR",
-          interimResults: true, // Real-time results for wake word detection
+          interimResults: true,
           maxAlternatives: 1,
-          continuous: options.continuous !== false, // Keep listening until stopped
-          requiresOnDeviceRecognition: false, // Use cloud for better accuracy
-          addsPunctuation: false, // Clean text for easier matching
-          contextualStrings: options.wakeWords, // Boost recognition of wake words
-          // Android-specific: Increase silence threshold for better continuous listening
-          androidIntentOptions:
-            Platform.OS === "android"
-              ? {
-                  EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 5000, // 5 seconds of silence before stopping
-                  EXTRA_MASK_OFFENSIVE_WORDS: false, // Don't filter any words
-                }
-              : undefined,
-          // iOS-specific: Optimize for voice command recognition
-          // iosTaskHint: Platform.OS === "ios" ? "search" : undefined, // Optimized for short phrases like wake words
-          // Only set audio category on real iOS devices (not simulator)
-          iosCategory:
-            Platform.OS === "ios"
-              ? {
-                  category: "playAndRecord",
-                  categoryOptions: ["defaultToSpeaker", "allowBluetooth"],
-                  mode: "default", // Use 'default' mode instead of 'measurement' for better simulator compatibility
-                }
-              : undefined,
-        });
+          continuous: options.continuous !== false,
+          requiresOnDeviceRecognition: false,
+          addsPunctuation: false,
+          contextualStrings: options.wakeWords,
+        };
+
+        if (Platform.OS === "android") {
+          config.androidIntentOptions = {
+            EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 5000,
+            EXTRA_MASK_OFFENSIVE_WORDS: false,
+          };
+        }
+
+        if (Platform.OS === "ios") {
+          config.iosCategory = {
+            category: "playAndRecord",
+            categoryOptions: [
+              "defaultToSpeaker",
+              "allowBluetooth",
+              "mixWithOthers",
+            ],
+            mode: "spokenAudio",
+          };
+        }
+
+        ExpoSpeechRecognitionModule.start(config);
       }
     } catch (error: any) {
       console.error("Failed to start listening:", error);
