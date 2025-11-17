@@ -29,6 +29,9 @@ const config: ExpoConfig = {
     infoPlist: {
       NSMicrophoneUsageDescription:
         "보드게임 규칙을 음성으로 검색하기 위해 마이크 접근이 필요합니다.",
+      NSAppTransportSecurity: {
+        NSAllowsArbitraryLoads: true,
+      },
     },
   },
   android: {
