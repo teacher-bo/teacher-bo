@@ -39,12 +39,12 @@ jobs:
           yarn install --frozen-lockfile
           echo "✅ Dependencies installed"
 
-      - name: Generate Prisma Client
-        run: |
-          cd server
-          echo "🔨 Generating Prisma Client..."
-          yarn db:generate
-          echo "✅ Prisma Client generated"
+      # - name: Generate Prisma Client
+      #   run: |
+      #     cd server
+      #     echo "🔨 Generating Prisma Client..."
+      #     yarn db:generate
+      #     echo "✅ Prisma Client generated"
 
       - name: Build application
         run: |
