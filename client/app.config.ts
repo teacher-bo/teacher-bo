@@ -32,6 +32,7 @@ const config: ExpoConfig = {
       NSAppTransportSecurity: {
         NSAllowsArbitraryLoads: true,
       },
+      ITSAppUsesNonExemptEncryption: false,
     },
   },
   android: {
