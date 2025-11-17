@@ -151,6 +151,11 @@ export const usePollyTTS = () => {
         // 1. 이전 재생 정리
         cleanupPlayer();
 
+        await setAudioModeAsync({
+          playsInSilentMode: true,
+          allowsRecording: false,
+        });
+
         // 2. TTS API 호출
         const audioUri = await synthesizeAudio(text, options);
 
