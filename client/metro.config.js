@@ -22,7 +22,7 @@ const apiProxy = createProxyMiddleware({
   //   "^/": "/api/",
   // },
   changeOrigin: true,
-  ws: true,
+  // ws: false,
   secure: false,
   logLevel: "debug",
   onError: (err, req, res) => {
