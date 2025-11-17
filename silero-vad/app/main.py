@@ -42,10 +42,32 @@ class VADResponse(BaseModel):
     confidence: float
 
 
+class HealthResponse(BaseModel):
+    """Health check response model"""
+
+    status: str
+    service: str
+    version: str
+    vad_model: str
+    sample_rate: int
+
+
 @app.get("/")
 async def root():
-    """Health check endpoint"""
+    """Root endpoint"""
     return {"service": "Silero VAD API", "status": "running", "version": "1.0.0"}
+
+
+@app.get("/health", response_model=HealthResponse)
+async def health_check():
+    """Health check endpoint with detailed status"""
+    return HealthResponse(
+        status="healthy",
+        service="Silero VAD API",
+        version="1.0.0",
+        vad_model="silero_vad",
+        sample_rate=vad_service.sample_rate,
+    )
 
 
 @app.post("/detect", response_model=VADResponse)
