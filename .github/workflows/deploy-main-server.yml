@@ -1,12 +1,12 @@
-name: Deploy to Elastic Beanstalk
+name: Deploy Main Server to Elastic Beanstalk
 
 on:
   push:
     branches:
       - main
     paths:
-      - "rag-server/**"
-      - ".github/workflows/deploy-vector-db.yml"
+      - "server/**"
+      - ".github/workflows/deploy-server.yml"
   workflow_dispatch:
 
 env:
@@ -20,10 +20,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
         with:
-          python-version: "3.11"
+          node-version: "20"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v5
@@ -32,53 +32,50 @@ jobs:
           aws-secret-access-key: ${{ secrets.RAG_AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Install dependencies
+        run: |
+          cd server
+          echo "📦 Installing dependencies..."
+          yarn install --frozen-lockfile
+          echo "✅ Dependencies installed"
+
+      - name: Generate Prisma Client
+        run: |
+          cd server
+          echo "🔨 Generating Prisma Client..."
+          yarn db:generate
+          echo "✅ Prisma Client generated"
+
+      - name: Build application
+        run: |
+          cd server
+          echo "🔨 Building application..."
+          yarn build
+          echo "✅ Build completed"
+          ls -la dist/
+
       - name: Create .env file
         run: |
-          cd rag-server
-          echo "${{ secrets.RAG_ENV }}" > .env
+          cd server
+          echo "${{ secrets.MAIN_SERVER_ENV }}" > .env
           echo "✅ .env file created"
-
-      - name: Configure AWS credentials for Vector DB
-        uses: aws-actions/configure-aws-credentials@v5
-        with:
-          aws-access-key-id: ${{ secrets.RAG_AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.RAG_AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.VECTOR_DB_GEN_AWS_REGION }}
-
-      - name: Download chroma_db from S3
-        run: |
-          cd rag-server
-          echo "📥 Downloading chroma_db from S3..."
-          aws s3 cp s3://${{ secrets.VECTOR_DB_GEN_S3_BUCKET_NAME }}/chroma_db/ chroma_db/ --recursive
-          echo "✅ chroma_db downloaded successfully"
-          ls -la chroma_db/
-
-      - name: Reconfigure AWS credentials for deployment
-        uses: aws-actions/configure-aws-credentials@v5
-        with:
-          aws-access-key-id: ${{ secrets.RAG_AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.RAG_AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
 
       - name: Create deployment package
         run: |
-          cd rag-server
+          cd server
           echo "📦 Creating deployment package..."
 
           zip -r ../deploy.zip \
-            application.py \
-            requirements.txt \
-            Procfile \
-            app/ \
-            chroma_db/ \
+            dist/ \
+            node_modules/ \
+            prisma/ \
+            package.json \
+            .env \
             .ebextensions/ \
             .ebignore \
-            .env \
-            -x "*.pyc" \
-            -x "__pycache__/*" \
-            -x "app/__pycache__/*" \
             -x "*.DS_Store" \
-            -x "venv/*"
+            -x "node_modules/.cache/*" \
+            -x "src/*"
 
           cd ..
           echo "📊 Deployment package created:"
@@ -91,11 +88,11 @@ jobs:
       - name: Upload to S3
         id: s3_upload
         run: |
-          VERSION_LABEL="ver-${{ steps.time.outputs.timestamp }}"
+          VERSION_LABEL="server-ver-${{ steps.time.outputs.timestamp }}"
           S3_BUCKET="${{ secrets.RAG_S3_BUCKET }}"
           S3_KEY="${VERSION_LABEL}.zip"
 
-          echo "Uploading to S3..."
+          echo "📤 Uploading to S3..."
           aws s3 cp deploy.zip s3://${S3_BUCKET}/${S3_KEY}
 
           echo "s3_key=${S3_KEY}" >> $GITHUB_OUTPUT
@@ -114,7 +111,7 @@ jobs:
           echo "🚀 Deploying to Elastic Beanstalk..."
           aws elasticbeanstalk update-environment \
             --application-name ${{ secrets.RAG_EB_APPLICATION_NAME }} \
-            --environment-name ${{ secrets.RAG_EB_ENVIRONMENT_NAME }} \
+            --environment-name ${{ secrets.MAIN_SERVER_EB_ENVIRONMENT_NAME }} \
             --version-label ${{ steps.s3_upload.outputs.version_label }}
 
       - name: Wait for deployment
@@ -122,7 +119,7 @@ jobs:
           echo "⏳ Waiting for deployment to complete..."
           aws elasticbeanstalk wait environment-updated \
             --application-name ${{ secrets.RAG_EB_APPLICATION_NAME }} \
-            --environment-names ${{ secrets.RAG_EB_ENVIRONMENT_NAME }}
+            --environment-names ${{ secrets.MAIN_SERVER_EB_ENVIRONMENT_NAME }}
           echo "✅ Deployment completed"
 
       - name: Get environment info
@@ -130,7 +127,7 @@ jobs:
         run: |
           CNAME=$(aws elasticbeanstalk describe-environments \
             --application-name ${{ secrets.RAG_EB_APPLICATION_NAME }} \
-            --environment-names ${{ secrets.RAG_EB_ENVIRONMENT_NAME }} \
+            --environment-names ${{ secrets.MAIN_SERVER_EB_ENVIRONMENT_NAME }} \
             --query "Environments[0].CNAME" \
             --output text)
 
@@ -139,11 +136,11 @@ jobs:
       - name: Health check
         run: |
           CNAME="${{ steps.env_info.outputs.cname }}"
-          echo "🏥 Running health check on http://${CNAME}/api/v1/health"
+          echo "🏥 Running health check on http://${CNAME}/health"
 
           for i in {1..10}; do
             echo "Attempt $i/10..."
-            RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://${CNAME}/api/v1/health || echo "000")
+            RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://${CNAME}/health || echo "000")
             
             if [ "$RESPONSE" = "200" ]; then
               echo "✅ Health check passed!"
@@ -161,7 +158,7 @@ jobs:
         if: success()
         run: |
           echo "========================================="
-          echo "🎉 Deployment Successful!"
+          echo "🎉 Server Deployment Successful!"
           echo "========================================="
           echo "Version: ${{ steps.s3_upload.outputs.version_label }}"
           echo "URL: http://${{ steps.env_info.outputs.cname }}"
