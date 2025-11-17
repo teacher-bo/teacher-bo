@@ -6,10 +6,6 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 
 import { PrismaModule } from './prisma/prisma.module';
-import { AuthModule } from './auth/auth.module';
-import { UsersModule } from './users/users.module';
-import { GamesModule } from './games/games.module';
-import { SessionsModule } from './sessions/sessions.module';
 import { TranscribeModule } from './transcribe/transcribe.module';
 import { OpenAIModule } from './openai/openai.module';
 import { PollyModule } from './polly/polly.module';
@@ -40,11 +36,7 @@ import { PollyModule } from './polly/polly.module';
       },
     ]),
     ScheduleModule.forRoot(),
-    PrismaModule,
-    AuthModule,
-    UsersModule,
-    GamesModule,
-    SessionsModule,
+    // PrismaModule,
     TranscribeModule,
     OpenAIModule,
     PollyModule,
