@@ -3,11 +3,16 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 name = "pypi"
 
+[[source]]
+url = "https://download.pytorch.org/whl/cpu"
+verify_ssl = true
+name = "pytorch"
+
 [packages]
 uvicorn = "*"
 fastapi = "*"
-torch = "*"
-torchaudio = "*"
+torch = {version = "==2.6.0+cpu", index = "pytorch"}
+torchaudio = {version = "==2.6.0", index = "pytorch"}
 numpy = "*"
 silero-vad = "*"
 python-multipart = "*"

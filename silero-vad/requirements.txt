@@ -1,7 +1,8 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
 uvicorn
 fastapi
-torch
-torchaudio
+torch==2.6.0+cpu
+torchaudio==2.6.0
 numpy
 silero-vad
 python-multipart
