@@ -1,23 +1,27 @@
-FROM python:3.11-slim
+
+FROM python:3.10-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    TMPDIR=/var/tmp \
+    PIPENV_VENV_IN_PROJECT=1 \
+    PIP_NO_CACHE_DIR=1
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
+# Runtime dependencies for torchaudio and friends
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libsndfile1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements
-COPY requirements.txt .
+# Install dependencies first to leverage Docker layer cache
+COPY Pipfile Pipfile.lock ./
+RUN pip install --upgrade pip pipenv \
+    && TMPDIR=/var/tmp pipenv install --system --deploy
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application code
+# Copy application source
 COPY . .
 
-# Expose port
-EXPOSE 1003
+EXPOSE 8000
 
-# Run the application
-CMD ["python", "main.py"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

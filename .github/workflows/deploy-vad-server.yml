@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - "silero-vad/**"
-      - ".github/workflows/deploy-silero-vad.yml"
+      - ".github/workflows/deploy-vad-server.yml"
   workflow_dispatch:
 
 env:
@@ -44,21 +44,21 @@ jobs:
           echo "📦 Creating deployment package..."
 
           zip -r ../deploy.zip \
-            main.py \
+            Dockerfile \
+            .dockerignore \
             Pipfile \
             Pipfile.lock \
             requirements.txt \
-            Procfile \
+            main.py \
             app/ \
-            .platform/ \
-            .ebextensions/ \
             .ebignore \
             .env \
             -x "*.pyc" \
             -x "__pycache__/*" \
             -x "app/__pycache__/*" \
             -x "*.DS_Store" \
-            -x "venv/*"
+            -x "venv/*" \
+            -x ".venv/*"
 
           cd ..
           echo "📊 Deployment package created:"
