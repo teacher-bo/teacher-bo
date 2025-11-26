@@ -33,8 +33,11 @@ class PromptTemplate:
       * For binary, start with "예" or "아니오".
       * For CANNOT_ANSWER, start with "죄송합니다" or "확인 불가".
       * The description should contain ONLY the direct answer/conclusion, NOT the source reference.
-    - source: quoted rulebook sentence(s) used as evidence, ordered by importance (most critical first), or "" if null
-    - page: one integer of page number or null
+    - source: Extract the "Source:" field value from the Context metadata (e.g., [Type: QA, Section: ..., Page: ..., Source: ...]).
+      * This is the original rulebook text that supports your answer.
+      * Do NOT use the QA answer (A:) as the source. Use the "Source:" metadata value.
+      * If no source is available, set to "".
+    - page: Extract the "Page:" field value from the Context metadata as an integer, or null if unavailable.
 
     Notes:
     - Keep answers concise and in Korean.
