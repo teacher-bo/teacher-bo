@@ -13,7 +13,7 @@ export class ChatInput {
   @IsOptional()
   sessionId?: string;
 
-  @Field(() => String, { nullable: true, defaultValue: 'sabotage' })
+  @Field(() => String, { nullable: true, defaultValue: 'rummikub' })
   @IsString()
   @IsOptional()
   gameKey?: string;

@@ -24,7 +24,7 @@ export class OpenAIService {
 
       const requestBody = {
         question: input.message,
-        game_key: input.gameKey || 'sabotage',
+        game_key: input.gameKey || 'rummikub',
         session_id: input.sessionId || 'default',
       };
 
