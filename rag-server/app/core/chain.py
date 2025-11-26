@@ -2,8 +2,8 @@
 
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
-from langchain_core.runnables import RunnablePassthrough, RunnableLambda
+from langchain_core.output_parsers import JsonOutputParser
+from langchain_core.runnables import RunnablePassthrough
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_chroma import Chroma
 
@@ -49,56 +49,11 @@ def create_rag_chain(
         model_name="gpt-4o-mini",
     )
     
-    # 질문 재구성 프롬프트 (대명사/생략된 맥락 해결)
-    contextualize_q_prompt = ChatPromptTemplate.from_messages([
-        ("system", """Given a chat history and the latest user question which might reference context in the chat history,
-formulate a standalone question which can be understood without the chat history.
-Do NOT answer the question, just reformulate it if needed and otherwise return it as is.
-Always respond in Korean."""),
-        MessagesPlaceholder(variable_name="chat_history"),
-        ("human", "{question}"),
-    ])
-    
-    # 질문 재구성 체인
-    contextualize_q_chain = contextualize_q_prompt | model | StrOutputParser()
-    
-    def get_search_query(inputs):
-        """대화 기록이 있으면 질문을 재구성, 없으면 원본 질문 반환"""
-        chat_history = inputs.get("chat_history", [])
-        question = inputs["question"]
-        
-        if chat_history:
-            # 대화 기록이 있으면 질문 재구성
-            reformulated = contextualize_q_chain.invoke({
-                "chat_history": chat_history,
-                "question": question
-            })
-            print(f"[DEBUG] Original: '{question}' -> Reformulated: '{reformulated}'")
-            return reformulated
-        return question
-    
     def retrieve_context(inputs):
         """질문과 관련된 문서를 검색하여 컨텍스트로 반환"""
-        # 재구성된 질문으로 검색
-        search_query = get_search_query(inputs)
-        docs = vectorstore.similarity_search(search_query, k=5)
-        
-        # 메타데이터를 포함하여 컨텍스트 구성
-        context_parts = []
-        for doc in docs:
-            meta = doc.metadata
-            doc_type = meta.get('type', 'unknown')
-            section = meta.get('section_title', 'N/A')
-            page = meta.get('page', 'N/A')
-            source_content = meta.get('content', 'N/A')
-            
-            # 공통: type, section, page, 출처(content) 모두 포함
-            source_info = f"[Type: {doc_type}, Section: {section}, Page: {page}, Source: {source_content}]"
-            
-            content = f"{source_info}\n{doc.page_content}"
-            context_parts.append(content)
-            
-        return "\n\n---\n\n".join(context_parts)
+        question = inputs["question"]
+        docs = vectorstore.similarity_search(question, k=5)
+        return "\n\n---\n\n".join([doc.page_content for doc in docs])
     
     # 체인 구성: 컨텍스트 검색 → 프롬프트 → LLM
     chain_without_parser = (
