@@ -53,7 +53,21 @@ def create_rag_chain(
         """질문과 관련된 문서를 검색하여 컨텍스트로 반환"""
         question = inputs["question"]
         docs = vectorstore.similarity_search(question, k=5)
-        return "\n\n---\n\n".join([doc.page_content for doc in docs])
+        
+        # 메타데이터를 포함하여 컨텍스트 구성
+        context_parts = []
+        for doc in docs:
+            meta = doc.metadata
+            # 메타데이터에서 필요한 정보 추출 (없을 경우 기본값 처리)
+            section = meta.get('section_title', 'N/A')
+            page = meta.get('page', 'N/A')
+            
+            # 컨텍스트 포맷팅: [섹션명 (p.페이지)] 내용
+            source_info = f"[Section: {section}, Page: {page}]"
+            content = f"{source_info}\n{doc.page_content}"
+            context_parts.append(content)
+            
+        return "\n\n---\n\n".join(context_parts)
     
     # 체인 구성: 컨텍스트 검색 → 프롬프트 → LLM
     chain_without_parser = (
