@@ -1,4 +1,5 @@
-name: Deploy RAG server to Elastic Beanstalk
+# Deprecated: this workflow is temporarily disabled
+name: DEPRECATED - Deploy RAG server to Elastic Beanstalk
 
 on:
   push:
@@ -14,6 +15,8 @@ env:
 
 jobs:
   deploy:
+    # Prevent this job from running while keeping the workflow file intact.
+    if: ${{ false }}
     runs-on: ubuntu-latest
 
     steps:
