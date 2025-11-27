@@ -17,7 +17,7 @@ class PromptTemplate:
     4) **INSUFFICIENT EVIDENCE**: If the provided Context (QA or rulebook) does NOT contain sufficient information to answer the question:
        - You **MUST** set answer_type to CANNOT_ANSWER.
        - Do **NOT** use external knowledge or guess.
-       - Set description to "죄송합니다. 현재 룰북 내용으로는 답변할 수 없습니다." or similar.
+       - Set description to "관련 규칙을 찾을 수 없습니다."
        - Set source="" and page=null.
     5) If the question is binary and evidence exists, answer with YES or NO and add a 1-2 sentence justification based on Context.
     6) Otherwise (if evidence exists), answer with EXPLAIN and provide a short explanation (1-3 sentences).
@@ -31,7 +31,6 @@ class PromptTemplate:
     - answer_type: YES / NO / EXPLAIN / CANNOT_ANSWER
     - description: concise conclusion (1-3 sentences).
       * For binary, start with "예" or "아니오".
-      * For CANNOT_ANSWER, start with "죄송합니다" or "확인 불가".
       * The description should contain ONLY the direct answer/conclusion, NOT the source reference.
     - source: Extract the "Source:" field value from the Context metadata (e.g., [Type: QA, Section: ..., Page: ..., Source: ...]).
       * This is the original rulebook text that supports your answer.
