@@ -1,0 +1,133 @@
+name: Deploy Client to S3 and CloudFront
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "client/**"
+      - ".github/workflows/deploy-client.yml"
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ap-northeast-2
+  S3_BUCKET: teacher-bo-client
+  CLOUDFRONT_DISTRIBUTION: teacherbo-client
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-access-key-id: ${{ secrets.RAG_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.RAG_AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install dependencies
+        run: |
+          cd client
+          echo "📦 Installing dependencies..."
+          yarn install --frozen-lockfile
+          echo "✅ Dependencies installed"
+
+      - name: Create .env file
+        run: |
+          cd client
+          echo "${{ secrets.CLIENT_ENV }}" > .env
+          echo "✅ .env file created"
+
+      - name: Export web build
+        run: |
+          cd client
+          echo "🔨 Exporting web build..."
+          yarn export:web
+          cp canvaskit.wasm _expo/js/web
+          echo "✅ Web build exported"
+          ls -la dist/
+
+      - name: Upload to S3
+        run: |
+          echo "📤 Uploading to S3 bucket: ${{ env.S3_BUCKET }}..."
+          aws s3 sync client/dist/ s3://${{ env.S3_BUCKET }}/ \
+            --delete \
+            --cache-control "public, max-age=31536000, immutable" \
+            --exclude "*.html" \
+            --exclude "*.json"
+
+          # Upload HTML and JSON files with different cache settings
+          aws s3 sync client/dist/ s3://${{ env.S3_BUCKET }}/ \
+            --exclude "*" \
+            --include "*.html" \
+            --include "*.json" \
+            --cache-control "public, max-age=0, must-revalidate"
+
+          echo "✅ Upload to S3 completed"
+
+      - name: Get CloudFront Distribution ID
+        id: cloudfront
+        run: |
+          DISTRIBUTION_ID=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?Comment=='${{ env.CLOUDFRONT_DISTRIBUTION }}'].Id | [0]" \
+            --output text)
+
+          if [ -z "$DISTRIBUTION_ID" ] || [ "$DISTRIBUTION_ID" == "None" ]; then
+            echo "❌ CloudFront distribution not found: ${{ env.CLOUDFRONT_DISTRIBUTION }}"
+            exit 1
+          fi
+
+          echo "distribution_id=${DISTRIBUTION_ID}" >> $GITHUB_OUTPUT
+          echo "✅ Found CloudFront distribution: ${DISTRIBUTION_ID}"
+
+      - name: Create CloudFront invalidation
+        id: invalidation
+        run: |
+          echo "🔄 Creating CloudFront invalidation..."
+          INVALIDATION_ID=$(aws cloudfront create-invalidation \
+            --distribution-id ${{ steps.cloudfront.outputs.distribution_id }} \
+            --paths "/*" \
+            --query "Invalidation.Id" \
+            --output text)
+
+          echo "invalidation_id=${INVALIDATION_ID}" >> $GITHUB_OUTPUT
+          echo "✅ Invalidation created: ${INVALIDATION_ID}"
+
+      - name: Wait for invalidation
+        run: |
+          echo "⏳ Waiting for CloudFront invalidation to complete..."
+          aws cloudfront wait invalidation-completed \
+            --distribution-id ${{ steps.cloudfront.outputs.distribution_id }} \
+            --id ${{ steps.invalidation.outputs.invalidation_id }}
+          echo "✅ Invalidation completed"
+
+      - name: Get CloudFront domain
+        id: domain
+        run: |
+          DOMAIN=$(aws cloudfront get-distribution \
+            --id ${{ steps.cloudfront.outputs.distribution_id }} \
+            --query "Distribution.DomainName" \
+            --output text)
+
+          echo "domain=${DOMAIN}" >> $GITHUB_OUTPUT
+
+      - name: Deployment summary
+        if: success()
+        run: |
+          echo "========================================="
+          echo "🎉 Client Deployment Successful!"
+          echo "========================================="
+          echo "S3 Bucket: ${{ env.S3_BUCKET }}"
+          echo "CloudFront Distribution: ${{ steps.cloudfront.outputs.distribution_id }}"
+          echo "Domain: https://${{ steps.domain.outputs.domain }}"
+          echo "Invalidation: ${{ steps.invalidation.outputs.invalidation_id }}"
+          echo "========================================="
