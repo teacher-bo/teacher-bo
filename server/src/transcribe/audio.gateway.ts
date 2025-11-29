@@ -26,6 +26,7 @@ export class AudioGateway implements OnGatewayConnection, OnGatewayDisconnect {
   server: Server;
 
   private readonly logger = new Logger(AudioGateway.name);
+  private clientVadFlags = new Map<string, boolean>();
 
   constructor(private transcribeService: TranscribeService) {
     // TranscribeService의 EventEmitter를 Redis PubSub으로 연결
@@ -45,6 +46,16 @@ export class AudioGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     eventEmitter.on('vadEnded', (data) => {
       this.logger.log(`🎙️ VAD ended event received:`, data);
+
+      // vad가 true인 connection은 vadEnded 이벤트를 받지 않음
+      const clientVadEnabled = this.clientVadFlags.get(data.clientId);
+      if (clientVadEnabled) {
+        this.logger.log(
+          `Skipping vadEnded event for client ${data.clientId} (VAD enabled)`,
+        );
+        return;
+      }
+
       this.emitToClient(data.clientId, 'vadEnded', {
         timestamp: data.timestamp,
         confidence: data.confidence,
@@ -54,10 +65,13 @@ export class AudioGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   handleConnection(client: Socket) {
-    this.logger.log(`Client connected: ${client.id}`);
+    const vad = client.handshake.query.vad === 'true';
+    this.clientVadFlags.set(client.id, vad);
+    this.logger.log(`Client connected: ${client.id}, VAD enabled: ${vad}`);
   }
 
   handleDisconnect(client: Socket) {
+    this.clientVadFlags.delete(client.id);
     this.logger.log(`Client disconnected: ${client.id}`);
   }
 

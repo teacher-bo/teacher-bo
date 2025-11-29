@@ -2,6 +2,7 @@ import { useCallback, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 
 interface UseSocketOptions {
+  vad: boolean;
   socketUrl: string;
   onTranscriptionResult?: (data: any) => void;
   onTranscriptionError?: (error: any) => void;
@@ -22,6 +23,7 @@ interface UseSocketReturn {
 }
 
 export const useSocket = ({
+  vad,
   socketUrl,
   onTranscriptionResult,
   onTranscriptionError,
@@ -59,6 +61,9 @@ export const useSocket = ({
       upgrade: true,
       rememberUpgrade: false,
       autoConnect: true,
+      query: {
+        vad: vad.toString(),
+      },
     });
 
     const socket = socketRef.current;
@@ -96,6 +101,7 @@ export const useSocket = ({
       onConnectError?.(error);
     });
   }, [
+    vad,
     socketUrl,
     onConnect,
     onTranscriptionResult,
