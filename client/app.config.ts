@@ -53,6 +53,8 @@ const config: ExpoConfig = {
     bundler: "metro",
     output: "static",
     favicon: "./assets/icons/favicon.png",
+    name: "보선생 - 환각없는 보드게임 음성 도우미",
+    shortName: "보선생 TeacherBo",
   },
   plugins: [
     "@siteed/expo-audio-studio",
