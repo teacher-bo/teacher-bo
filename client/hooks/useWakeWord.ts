@@ -2,9 +2,17 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { Platform } from "react-native";
 
 import {
+  ExpoAudioStreamModule,
+  AudioDataEvent,
+  useAudioRecorder,
+} from "@siteed/expo-audio-studio";
+import {
   useSpeechRecognitionEvent,
   ExpoSpeechRecognitionModule,
+  ExpoSpeechRecognitionOptions,
 } from "expo-speech-recognition";
+import { useSocket } from "./useSocket";
+import { ENV } from "../utils/env";
 
 interface UseWakeWordOptions {
   wakeWords: string[];
@@ -92,6 +100,10 @@ export const useWakeWord = (
   const [isListening, setIsListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Web audio recording
+  const { startRecording: startRecordingWeb, stopRecording: stopRecordingWeb } =
+    useAudioRecorder();
+
   // Web Speech Recognition 인스턴스 저장
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
@@ -114,7 +126,7 @@ export const useWakeWord = (
   const shouldContinueRef = useRef(false);
 
   const startRecognition = useCallback(async () => {
-    const config: any = {
+    const config: ExpoSpeechRecognitionOptions = {
       lang: options.language || "ko-KR",
       interimResults: true,
       maxAlternatives: 1,
@@ -224,79 +236,60 @@ export const useWakeWord = (
     }
   });
 
-  // Web Speech Recognition 설정
+  // Web platform: use Socket.IO to send audio to server for transcription
+  const onAudioDataRef = useRef<(event: AudioDataEvent) => Promise<void>>(
+    async () => {}
+  );
+
+  const { sendAudioChunk, stopTranscriptionStream, connect, disconnect } =
+    useSocket({
+      vad: true,
+      socketUrl: ENV.API_BASE_URL,
+      onTranscriptionResult: (data) => {
+        if (Platform.OS === "web") {
+          console.log("Transcription result:", data.text);
+          checkForWakeWords(data.text);
+        }
+      },
+      onTranscriptionError: (error) => {
+        console.error("Transcription error:", error);
+        if (Platform.OS === "web") {
+          setError(`Transcription error: ${error.message || error}`);
+        }
+      },
+      onConnect: () => {
+        console.log("Socket connected for wake word detection");
+      },
+    });
+
+  // Setup audio data handler for web
+  const setupAudioDataHandler = useCallback(() => {
+    onAudioDataRef.current = async (event: AudioDataEvent): Promise<void> => {
+      try {
+        const { data, eventDataSize } = event;
+
+        if (!eventDataSize || eventDataSize === 0) return;
+
+        if (data instanceof Int16Array) {
+          const uint8Array = new Uint8Array(data.buffer);
+          const base64String = btoa(String.fromCharCode(...uint8Array));
+          sendAudioChunk(base64String, 0);
+        }
+      } catch (error) {
+        console.error("Error processing audio data:", error);
+      }
+      return Promise.resolve();
+    };
+  }, [sendAudioChunk]);
+
   useEffect(() => {
     if (Platform.OS === "web") {
-      const SpeechRecognitionAPI =
-        window.SpeechRecognition || window.webkitSpeechRecognition;
-
-      if (SpeechRecognitionAPI) {
-        if (!recognitionRef.current) {
-          recognitionRef.current = new SpeechRecognitionAPI();
-        }
-
-        const recognition = recognitionRef.current;
-        recognition.continuous = options.continuous || true;
-        recognition.interimResults = true;
-        recognition.lang = options.language || "ko-KR";
-        recognition.maxAlternatives = 1;
-
-        const handleStart = () => {
-          console.log("Web Speech: Recognition started");
-          setIsListening(true);
-          setError(null);
-        };
-
-        const handleEnd = () => {
-          console.log("Web Speech: Recognition ended");
-          setIsListening(false);
-
-          if (options.continuous) {
-            recognition.start();
-          }
-        };
-
-        const handleError = (event: any) => {
-          console.error("Web Speech: Recognition error", event.error);
-          setError(`Speech recognition error: ${event.error}`);
-          setIsListening(false);
-        };
-
-        const handleResult = (event: Event) => {
-          const speechEvent = event as unknown as SpeechRecognitionEvent;
-          for (
-            let i = speechEvent.resultIndex;
-            i < speechEvent.results.length;
-            i++
-          ) {
-            const result = speechEvent.results[i];
-            if (result.length > 0) {
-              const transcript = result[0].transcript;
-              const confidence = result[0].confidence;
-
-              console.debug("Web Speech: Result:", transcript);
-
-              // if (confidence >= (options.sensitivity || 0.8)) {
-              checkForWakeWords(transcript);
-              // }
-            }
-          }
-        };
-
-        recognition.addEventListener("start", handleStart);
-        recognition.addEventListener("end", handleEnd);
-        recognition.addEventListener("error", handleError);
-        recognition.addEventListener("result", handleResult);
-
-        return () => {
-          recognition.removeEventListener("start", handleStart);
-          recognition.removeEventListener("end", handleEnd);
-          recognition.removeEventListener("error", handleError);
-          recognition.removeEventListener("result", handleResult);
-        };
-      }
+      connect();
+      return () => {
+        disconnect();
+      };
     }
-  }, [checkForWakeWords]);
+  }, []);
 
   const startListening = useCallback(async (): Promise<void> => {
     try {
@@ -304,12 +297,23 @@ export const useWakeWord = (
       shouldContinueRef.current = true;
 
       if (Platform.OS === "web") {
-        if (recognitionRef.current) {
-          recognitionRef.current.start();
-        } else {
-          console.warn("Speech recognition not supported. Maybe not yet?");
-          setTimeout(() => startListening(), 500);
+        console.log("Starting wake word detection on web...");
+        const { granted } =
+          await ExpoAudioStreamModule.requestPermissionsAsync();
+        if (!granted) {
+          throw new Error("Microphone permission not granted");
         }
+
+        setupAudioDataHandler();
+
+        await startRecordingWeb({
+          sampleRate: 16000,
+          onAudioStream: (event: AudioDataEvent): Promise<void> =>
+            onAudioDataRef.current(event),
+        });
+
+        setIsListening(true);
+        console.log("Web wake word detection started");
       } else {
         const result =
           await ExpoSpeechRecognitionModule.requestPermissionsAsync();
@@ -366,9 +370,9 @@ export const useWakeWord = (
       shouldContinueRef.current = false; // continuous 모드 비활성화
 
       if (Platform.OS === "web") {
-        if (recognitionRef.current) {
-          recognitionRef.current.stop();
-        }
+        stopTranscriptionStream();
+        await stopRecordingWeb();
+        console.log("Web wake word detection stopped");
       } else {
         await ExpoSpeechRecognitionModule.stop();
         console.log("✅ Speech recognition stopped");
