@@ -12,7 +12,7 @@ on:
 env:
   AWS_REGION: ap-northeast-2
   S3_BUCKET: teacher-bo-client
-  CLOUDFRONT_DISTRIBUTION: teacherbo-client
+  CLOUDFRONT_DISTRIBUTION: E2HHRGQCO89EBY
 
 jobs:
   deploy:
