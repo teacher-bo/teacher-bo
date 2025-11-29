@@ -10,13 +10,15 @@ import {
   Animated,
   Pressable,
   Linking,
+  Image,
+  ImageBackground,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
 import Breathe from "@/components/Breathe";
-import GameSelectionModal from "@/components/GameSelectionModal";
+import GameSelectionModal, { GAMES } from "@/components/GameSelectionModal";
 import MicButton from "@/components/MicButton";
 import { useStreamingAudioService } from "../../hooks/useStreamingAudioService";
 import { useOpenAI } from "../../hooks/useOpenAI";
@@ -478,6 +480,41 @@ export default function BreathePage() {
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
+      {/* Current Game Info Header - Hidden when messages are expanded */}
+      {!isExpanded && (
+        <TouchableOpacity
+          style={styles.gameInfoHeader}
+          onPress={() => setShowGameSelection(true)}
+          activeOpacity={0.7}
+        >
+          {/* Background Image */}
+          {selectedGameKey &&
+            GAMES.find((g) => g.key === selectedGameKey)?.image && (
+              <Image
+                source={GAMES.find((g) => g.key === selectedGameKey)!.image}
+                style={styles.gameInfoBackground}
+                resizeMode="cover"
+              />
+            )}
+
+          {/* Content */}
+          <View style={styles.gameInfoContent}>
+            <Ionicons name="game-controller-outline" size={20} color="#fff" />
+            <Text style={styles.gameInfoText}>
+              {selectedGameKey
+                ? GAMES.find((g) => g.key === selectedGameKey)?.name ||
+                  "게임 선택"
+                : "게임 선택"}
+            </Text>
+          </View>
+          <Ionicons
+            name="chevron-down"
+            size={20}
+            color="rgba(255,255,255,0.6)"
+          />
+        </TouchableOpacity>
+      )}
+
       {/* Breathe Animation - Circle position controlled by offsetY */}
       <View style={styles.breatheContainer}>
         <Breathe width={width * breatheScale} offsetY={breatheOffsetY} />
@@ -655,6 +692,7 @@ export default function BreathePage() {
       {/* Game Selection Modal */}
       <GameSelectionModal
         visible={showGameSelection}
+        selectedGameKey={selectedGameKey}
         onSelect={(gameKey) => {
           setSelectedGameKey(gameKey);
           setShowGameSelection(false);
@@ -843,5 +881,42 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     textDecorationLine: "underline",
+  },
+  // Game Info Header
+  gameInfoHeader: {
+    position: "absolute",
+    top: 60,
+    left: 16,
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.15)",
+    zIndex: 10,
+    overflow: "hidden",
+  },
+  gameInfoBackground: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0.15,
+  },
+  gameInfoContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    zIndex: 1,
+  },
+  gameInfoText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
