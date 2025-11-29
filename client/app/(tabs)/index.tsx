@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
 import Breathe from "@/components/Breathe";
+import GameSelectionModal from "@/components/GameSelectionModal";
 import { useStreamingAudioService } from "../../hooks/useStreamingAudioService";
 import { useOpenAI } from "../../hooks/useOpenAI";
 import { usePollyTTS } from "../../hooks/usePollyTTS";
@@ -48,6 +49,10 @@ export default function BreathePage() {
   const [chatSessionId, setChatSessionId] = useState<string>(
     generateChatSessionId()
   );
+
+  // Game selection state
+  const [selectedGameKey, setSelectedGameKey] = useState<string | null>(null);
+  const [showGameSelection, setShowGameSelection] = useState(true);
 
   const userTranscriptRef = useRef<string>("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -329,6 +334,7 @@ export default function BreathePage() {
                 const aiResponse = await chatWithAI({
                   message: userText,
                   sessionId: chatSessionId,
+                  gameKey: selectedGameKey || undefined,
                 });
 
                 if (aiResponse) {
@@ -596,6 +602,16 @@ export default function BreathePage() {
           </Animated.View>
         </>
       )}
+
+      {/* Game Selection Modal */}
+      <GameSelectionModal
+        visible={showGameSelection}
+        onSelect={(gameKey) => {
+          setSelectedGameKey(gameKey);
+          setShowGameSelection(false);
+          console.log("Selected game:", gameKey);
+        }}
+      />
     </SafeAreaView>
   );
 }
