@@ -17,6 +17,7 @@ import { LinearGradient } from "expo-linear-gradient";
 
 import Breathe from "@/components/Breathe";
 import GameSelectionModal from "@/components/GameSelectionModal";
+import MicButton from "@/components/MicButton";
 import { useStreamingAudioService } from "../../hooks/useStreamingAudioService";
 import { useOpenAI } from "../../hooks/useOpenAI";
 import { usePollyTTS } from "../../hooks/usePollyTTS";
@@ -435,6 +436,46 @@ export default function BreathePage() {
     }
   };
 
+  // Handle mic button press to change state
+  const handleMicButtonPress = async () => {
+    console.log("Mic button pressed. Current state:", conversationState);
+
+    switch (conversationState) {
+      case "IDLE":
+        // IDLE → LISTENING: Turn mic on
+        await stopWakeWordListening();
+        setConversationState("LISTENING");
+        break;
+
+      case "GREETING":
+        // GREETING → LISTENING: Turn mic on (skip greeting)
+        await stopSpeaking();
+        setConversationState("LISTENING");
+        break;
+
+      case "LISTENING":
+        // LISTENING → PROCESSING: Turn mic off
+        if (isRecording) {
+          await stopRecording();
+        }
+        break;
+
+      case "SPEAKING":
+        // SPEAKING → LISTENING: Turn mic on (interrupt AI response)
+        await stopSpeaking();
+        setConversationState("LISTENING");
+        break;
+
+      case "PROCESSING":
+        // Do nothing when processing
+        console.log("Cannot change state while processing");
+        break;
+
+      default:
+        break;
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={[]}>
       {/* Breathe Animation - Circle position controlled by offsetY */}
@@ -445,6 +486,14 @@ export default function BreathePage() {
       {/* Status Overlay */}
       <View style={styles.statusOverlay}>
         <Text style={styles.statusText}>{getStateText()}</Text>
+
+        {/* Mic Button */}
+        <View style={styles.micButtonContainer}>
+          <MicButton
+            conversationState={conversationState}
+            onPress={handleMicButtonPress}
+          />
+        </View>
       </View>
 
       {/* Messages Container - Expandable */}
@@ -651,6 +700,9 @@ const styles = StyleSheet.create({
     textShadowColor: "rgba(0, 0, 0, 0.75)",
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
+  },
+  micButtonContainer: {
+    marginTop: 20,
   },
   // Unified Messages Container (Expandable)
   messagesContainer: {
