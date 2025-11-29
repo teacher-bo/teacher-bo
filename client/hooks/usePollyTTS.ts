@@ -154,6 +154,7 @@ export const usePollyTTS = () => {
         await setAudioModeAsync({
           playsInSilentMode: true,
           allowsRecording: false,
+          shouldRouteThroughEarpiece: false,
         });
 
         // 2. TTS API 호출
@@ -213,6 +214,7 @@ export const usePollyTTS = () => {
       setAudioModeAsync({
         playsInSilentMode: true,
         allowsRecording: true,
+        shouldRouteThroughEarpiece: false, // 안드로이드 웹에서 수화기 대신 스피커로 출력하도록 강제
       });
     })();
   }, []);
