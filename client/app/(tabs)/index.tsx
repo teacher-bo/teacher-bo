@@ -725,7 +725,7 @@ const styles = StyleSheet.create({
   },
   statusOverlay: {
     position: "absolute",
-    bottom: 100,
+    bottom: 60,
     left: 0,
     right: 0,
     alignItems: "center",

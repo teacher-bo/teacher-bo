@@ -87,7 +87,8 @@ export const Breathe = ({
   offsetY?: number;
 }) => {
   const wind = Dimensions.get("window");
-  const canvasWidth = Platform.OS === "web" ? 440 : wind.width;
+  const canvasWidth =
+    Platform.OS === "web" ? Math.min(wind.width, 440) : wind.width;
   const canvasHeight = wind.height;
 
   const center = useMemo(
