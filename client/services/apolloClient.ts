@@ -18,10 +18,24 @@ const httpLink = createHttpLink({
 });
 
 // WebSocket Link for subscriptions
+// For Node.js environments (like during build), we need to provide ws implementation
+let wsImpl: typeof WebSocket | undefined;
+if (typeof WebSocket === "undefined") {
+  // We're in a Node.js environment
+  try {
+    // Dynamic import for Node.js
+    const ws = require("ws");
+    wsImpl = ws;
+  } catch (err) {
+    console.warn("WebSocket implementation not available:", err);
+  }
+}
+
 const wsLink = new GraphQLWsLink(
   createClient({
     url: `${API_URL.replace("http", "ws")}/api/graphql`,
     shouldRetry: () => true,
+    webSocketImpl: wsImpl,
   })
 );
 
