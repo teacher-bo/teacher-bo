@@ -105,7 +105,7 @@ export class TranscribeService {
         MediaSampleRateHertz: 16000,
         MediaEncoding: MediaEncoding.PCM,
         AudioStream: audioStream(this),
-        // VocabularyName: 'TeacherBo',
+        VocabularyName: 'TeacherBoVocab',
       });
 
       this.logger.log('Sending command to AWS Transcribe');
