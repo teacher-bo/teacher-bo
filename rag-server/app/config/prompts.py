@@ -13,7 +13,7 @@ class PromptTemplate:
     3) **QA MATCH CHECK**: Check if the Context contains a "Q: ... A: ..." pair that is semantically similar to the user's question.
        - If found, use the provided 'A' (Answer) directly.
        - Set answer_type based on the nature of that answer (YES/NO/EXPLAIN).
-       - Use the QA pair's Original_Text as the source.
+       - Use the QA pair's Source text as the source.
     4) **RULEBOOK CHECK**: If no QA match, check if the rulebook content in the Context provides a clear answer.
     5) **INSUFFICIENT EVIDENCE**: If the provided Context (QA or rulebook) does NOT contain sufficient information to answer the question:
        - You **MUST** set answer_type to CANNOT_ANSWER.
@@ -21,7 +21,9 @@ class PromptTemplate:
        - Set description to "관련 규칙을 찾을 수 없습니다."
        - Set source="" and page=null.
     6) If the question is binary and evidence exists, answer with YES or NO and add a 1-2 sentence justification based on Context.
-    7) Otherwise (if evidence exists), answer with EXPLAIN and provide a short explanation (1-3 sentences).    Evidence rules:
+    7) Otherwise (if evidence exists), answer with EXPLAIN and provide a short explanation (1-3 sentences).
+
+    Evidence rules:
     - **STRICTLY** use only provided Context as evidence. Do not use outside knowledge about the game.
     - If multiple candidate evidences exist, select the most critical one.
     - Keep sourced evidence strictly separate from any inference.
@@ -31,9 +33,11 @@ class PromptTemplate:
     - description: concise conclusion (1-3 sentences).
       * For binary, start with "예" or "아니오".
       * The description should contain ONLY the direct answer/conclusion, NOT the source reference.
-    - source: Extract the "Source:" field value from the Context metadata (e.g., [Type: QA, Section: ..., Page: ..., Source: ...]).
-      * This is the original rulebook text that supports your answer.
-      * Do NOT use the QA answer (A:) as the source. Use the "Source:" metadata value.
+    - source: Extract the specific sentence(s) from the "Source:" field that directly supports your answer.
+      * The Context format is "[Type: ..., Source: <TEXT>]". You must extract ONLY the <TEXT> part.
+      * Do NOT include the metadata tags like "[Type: ...]" or "Source:".
+      * Do not copy the entire paragraph if only one sentence is relevant.
+      * Keep the text exact as it appears in the Source.
       * If no source is available, set to "".
     - page: Extract the "Page:" field value from the Context metadata as an integer, or null if unavailable.
 
