@@ -52,7 +52,7 @@ jobs:
           cd client
           echo "🔨 Exporting web build..."
           yarn export:web
-          cp canvaskit.wasm _expo/js/web
+          cp ./dist/canvaskit.wasm ./dist/_expo/static/js/web
           echo "✅ Web build exported"
           ls -la dist/
 
