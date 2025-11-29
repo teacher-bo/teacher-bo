@@ -38,9 +38,10 @@ if (!command) {
   process.exit(1);
 }
 
+const fullCommand = command.replace("$CLIENT_PORT", CLIENT_PORT);
 const fullArgs = args.map((arg) => arg.replace("$CLIENT_PORT", CLIENT_PORT));
 
-const proc = spawn(command, fullArgs, {
+const proc = spawn(fullCommand, fullArgs, {
   stdio: "inherit",
   shell: true,
   env: {
