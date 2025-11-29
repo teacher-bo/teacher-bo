@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  Image,
   Modal,
   View,
   Text,
@@ -18,6 +19,7 @@ interface GameSelectionModalProps {
 interface Game {
   key: string;
   name: string;
+  image?: { uri: string; width: number; height: number };
   icon: keyof typeof Ionicons.glyphMap;
   color: string;
   disabled?: boolean;
@@ -27,24 +29,28 @@ const GAMES: Game[] = [
   {
     key: "sabotage",
     name: "사보타지",
+    image: require("./assets/game-icons/sabotage.png"),
     icon: "hammer-outline",
     color: "#8B4513",
   },
   {
     key: "rummikub",
     name: "루미큐브",
+    image: require("./assets/game-icons/rummikub.png"),
     icon: "grid-outline",
     color: "#FF6B6B",
   },
   {
     key: "halligalli",
     name: "할리갈리",
+    image: require("./assets/game-icons/halligalli.png"),
     icon: "notifications-outline",
     color: "#4ECDC4",
   },
   {
     key: "bang",
     name: "뱅",
+    image: require("./assets/game-icons/bang.png"),
     icon: "flash-outline",
     color: "#FFD93D",
     disabled: true,
@@ -91,19 +97,30 @@ function ModalContent({ onSelect }: { onSelect: (gameKey: string) => void }) {
             activeOpacity={game.disabled ? 1 : 0.7}
             disabled={game.disabled}
           >
-            <View
-              style={[
-                styles.iconContainer,
-                { backgroundColor: game.color + "20" },
-                game.disabled && styles.iconContainerDisabled,
-              ]}
-            >
-              <Ionicons
-                name={game.icon}
-                size={48}
-                color={game.disabled ? "#666" : game.color}
+            {game.image ? (
+              <Image
+                source={game.image}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  resizeMode: "contain",
+                }}
               />
-            </View>
+            ) : (
+              <View
+                style={[
+                  styles.iconContainer,
+                  { backgroundColor: game.color + "20" },
+                  game.disabled && styles.iconContainerDisabled,
+                ]}
+              >
+                <Ionicons
+                  name={game.icon}
+                  size={48}
+                  color={game.disabled ? "#666" : game.color}
+                />
+              </View>
+            )}
             <Text
               style={[
                 styles.gameName,
@@ -120,8 +137,6 @@ function ModalContent({ onSelect }: { onSelect: (gameKey: string) => void }) {
           </TouchableOpacity>
         ))}
       </View>
-
-      <Text style={styles.hint}>게임을 선택하면 질문을 시작할 수 있어요</Text>
     </>
   );
 }
@@ -170,11 +185,12 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   gameCard: {
+    overflow: "hidden",
     width: 140,
+    height: 140,
     alignItems: "center",
     backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 16,
-    padding: 20,
     borderWidth: 2,
     borderColor: "rgba(255, 255, 255, 0.1)",
   },
@@ -194,6 +210,11 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(100, 100, 100, 0.2) !important" as any,
   },
   gameName: {
+    marginTop: -32,
+    backgroundColor: "#171717ba",
+    paddingInline: 12,
+    paddingBlock: 4,
+    borderRadius: 8,
     fontSize: 16,
     fontWeight: "600",
     color: "#fff",
@@ -215,11 +236,5 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "600",
     color: "#FFA500",
-  },
-  hint: {
-    fontSize: 13,
-    color: "rgba(255, 255, 255, 0.6)",
-    textAlign: "center",
-    fontStyle: "italic",
   },
 });
