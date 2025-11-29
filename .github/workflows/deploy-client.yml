@@ -12,7 +12,7 @@ on:
 env:
   AWS_REGION: ap-northeast-2
   S3_BUCKET: teacher-bo-client
-  CLOUDFRONT_DISTRIBUTION: E2HHRGQCO89EBY
+  CLOUDFRONT_DISTRIBUTION_ID: E2HHRGQCO89EBY
 
 jobs:
   deploy:
@@ -74,40 +74,24 @@ jobs:
 
           echo "✅ Upload to S3 completed"
 
-      - name: Get CloudFront Distribution ID
-        id: cloudfront
-        run: |
-          DISTRIBUTION_ID=$(aws cloudfront list-distributions \
-            --query "DistributionList.Items[?Comment=='${{ env.CLOUDFRONT_DISTRIBUTION }}'].Id | [0]" \
-            --output text)
-
-          if [ -z "$DISTRIBUTION_ID" ] || [ "$DISTRIBUTION_ID" == "None" ]; then
-            echo "❌ CloudFront distribution not found: ${{ env.CLOUDFRONT_DISTRIBUTION }}"
-            exit 1
-          fi
-
-          echo "distribution_id=${DISTRIBUTION_ID}" >> $GITHUB_OUTPUT
-          echo "✅ Found CloudFront distribution: ${DISTRIBUTION_ID}"
-
       - name: Create CloudFront invalidation
-        id: invalidation
+        id: cloudfront
         run: |
           echo "🔄 Creating CloudFront invalidation..."
           INVALIDATION_ID=$(aws cloudfront create-invalidation \
-            --distribution-id ${{ steps.cloudfront.outputs.distribution_id }} \
-            --paths "/*" \
-            --query "Invalidation.Id" \
-            --output text)
-
-          echo "invalidation_id=${INVALIDATION_ID}" >> $GITHUB_OUTPUT
+            --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*")
           echo "✅ Invalidation created: ${INVALIDATION_ID}"
+
+          echo "distribution_id=${{ env.CLOUDFRONT_DISTRIBUTION_ID }}" >> $GITHUB_OUTPUT
+          echo "invalidation_id=${INVALIDATION_ID}" >> $GITHUB_OUTPUT
 
       - name: Wait for invalidation
         run: |
           echo "⏳ Waiting for CloudFront invalidation to complete..."
           aws cloudfront wait invalidation-completed \
             --distribution-id ${{ steps.cloudfront.outputs.distribution_id }} \
-            --id ${{ steps.invalidation.outputs.invalidation_id }}
+            --id ${{ steps.cloudfront.outputs.invalidation_id }}
           echo "✅ Invalidation completed"
 
       - name: Get CloudFront domain
