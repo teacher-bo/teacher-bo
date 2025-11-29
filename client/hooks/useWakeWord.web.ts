@@ -48,7 +48,7 @@ export const useWakeWord = (
 
   const { sendAudioChunk, stopTranscriptionStream, connect, disconnect } =
     useSocket({
-      vad: true,
+      vad: false,
       socketUrl: ENV.API_BASE_URL,
       onTranscriptionResult: (data) => {
         console.log("Transcription result:", data.text);

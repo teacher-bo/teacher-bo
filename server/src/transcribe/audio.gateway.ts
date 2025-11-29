@@ -47,12 +47,8 @@ export class AudioGateway implements OnGatewayConnection, OnGatewayDisconnect {
     eventEmitter.on('vadEnded', (data) => {
       this.logger.log(`🎙️ VAD ended event received:`, data);
 
-      // vad가 true인 connection은 vadEnded 이벤트를 받지 않음
       const clientVadEnabled = this.clientVadFlags.get(data.clientId);
-      if (clientVadEnabled) {
-        this.logger.log(
-          `Skipping vadEnded event for client ${data.clientId} (VAD enabled)`,
-        );
+      if (!clientVadEnabled) {
         return;
       }
 

@@ -57,7 +57,7 @@ export const useStreamingAudioService = (): UseAudioServiceReturn => {
     disconnect: disconnectSocket,
     reconnect: reconnectSocket,
   } = useSocket({
-    vad: false,
+    vad: true,
     socketUrl: ENV.API_BASE_URL,
     onTranscriptionResult: (data) => {
       setSttDatas((prev) => {
