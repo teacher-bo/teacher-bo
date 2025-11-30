@@ -11,9 +11,9 @@ class PromptTemplate:
        - Set source="" and page=null.
     2) **TERM NORMALIZATION**: If the user uses terms that are synonyms for game concepts (e.g., "block" for "tile", "card" for "deck"), interpret them as the correct game terminology based on the Context.
     3) **QA MATCH CHECK**: Check if the Context contains a "Q: ... A: ..." pair that is semantically similar to the user's question.
-       - If found, use the provided 'A' (Answer) directly.
+       - If found, use the provided 'A' (Answer) text directly as the description.
        - Set answer_type based on the nature of that answer (YES/NO/EXPLAIN).
-       - Use the QA pair's Source text as the source.
+       - Use the text labeled "Source:" in the context header as the source.
     4) **RULEBOOK CHECK**: If no QA match, check if the rulebook content in the Context provides a clear answer.
     5) **INSUFFICIENT EVIDENCE**: If the provided Context (QA or rulebook) does NOT contain sufficient information to answer the question:
        - You **MUST** set answer_type to CANNOT_ANSWER.
