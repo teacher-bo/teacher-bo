@@ -31,8 +31,22 @@ export default function RootLayout() {
       <Head>
         <title>{title}</title>
       </Head>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack
+        screenOptions={{
+          contentStyle: {
+            backgroundColor: "#242b38",
+          },
+        }}
+      >
+        <Stack.Screen
+          name="(tabs)"
+          options={{
+            headerShown: false,
+            contentStyle: {
+              backgroundColor: "#242b38",
+            },
+          }}
+        />
         <Stack.Screen name="+not-found" />
       </Stack>
     </AppProvider>

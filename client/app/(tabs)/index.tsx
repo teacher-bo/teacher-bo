@@ -81,7 +81,6 @@ export default function BreathePage() {
   //   },
   // ]);
 
-  
   const [isExpanded, setIsExpanded] = useState(false);
   const [breatheOffsetY, setBreatheOffsetY] = useState(0);
   const [breatheScale, setBreatheScale] = useState(1); // Scale for Breathe size
@@ -579,26 +578,24 @@ export default function BreathePage() {
     }
   };
 
+  const selGame = GAMES.find((g) => g.key === selectedGameKey);
+
   return (
     <SafeAreaView style={styles.container} edges={[]}>
       {/* Current Game Info Header - Hidden when messages are expanded */}
       {!isExpanded && (
         <TouchableOpacity
-          style={styles.gameInfoHeader}
+          style={[styles.gameInfoHeader]}
           onPress={() => setShowGameSelection(true)}
           activeOpacity={0.7}
         >
-          {/* Background Image */}
-          {selectedGameKey &&
-            GAMES.find((g) => g.key === selectedGameKey)?.image && (
-              <Image
-                source={GAMES.find((g) => g.key === selectedGameKey)!.image}
-                style={styles.gameInfoBackground}
-                resizeMode="cover"
-              />
-            )}
-
-          {/* Content */}
+          {selGame?.image && (
+            <Image
+              source={selGame.image}
+              style={styles.gameInfoBackground}
+              resizeMode="cover"
+            />
+          )}
           <View style={styles.gameInfoContent}>
             <Ionicons name="game-controller-outline" size={20} color="#fff" />
             <Text style={styles.gameInfoText}>
@@ -739,7 +736,10 @@ export default function BreathePage() {
                                   </Text>
                                   <TouchableOpacity
                                     onPress={() => {
-                                      const pageNum = parseInt(message.page || "1", 10);
+                                      const pageNum = parseInt(
+                                        message.page || "1",
+                                        10
+                                      );
                                       setRulebookPage(pageNum);
                                       setShowRulebook(true);
                                     }}
@@ -798,7 +798,7 @@ export default function BreathePage() {
       />
 
       {/* 룰북 뷰어 컴포넌트 추가 */}
-      <RulebookViewer 
+      <RulebookViewer
         visible={showRulebook}
         gameKey={selectedGameKey || "rummikub"}
         initialPage={rulebookPage}
@@ -1007,11 +1007,11 @@ const styles = StyleSheet.create({
   },
   gameInfoBackground: {
     position: "absolute",
-    top: 0,
-    left: 0,
+    top: "-460%",
+    left: "30%",
     right: 0,
     bottom: 0,
-    opacity: 0.15,
+    opacity: 0.6,
   },
   gameInfoContent: {
     flexDirection: "row",
