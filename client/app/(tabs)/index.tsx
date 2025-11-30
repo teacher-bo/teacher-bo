@@ -98,7 +98,6 @@ export default function BreathePage() {
       isUser,
       textItems: [{ resultId: `item_${Date.now()}`, text: content }],
       timestamp: new Date(),
-      source: isUser ? undefined : "OpenAI GPT-4",
     };
 
     setMessages((prev) => [...prev, newMessage]);
@@ -180,6 +179,7 @@ export default function BreathePage() {
           </speak>
         `;
 
+        addMessage(false, "안녕하세요! 무엇을 도와드릴까요?");
         await speakText(text);
         await new Promise((resolve) => setTimeout(resolve, 500));
         setConversationState("LISTENING");
@@ -419,22 +419,101 @@ export default function BreathePage() {
     }
   }, [onVadEnded, isRecording, conversationState]);
 
+  // Animated loading dots component
+  const LoadingDots = () => {
+    const dot1Anim = useRef(new Animated.Value(0)).current;
+    const dot2Anim = useRef(new Animated.Value(0)).current;
+    const dot3Anim = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+      const createDotAnimation = (animValue: Animated.Value, delay: number) => {
+        return Animated.loop(
+          Animated.sequence([
+            Animated.delay(delay),
+            Animated.parallel([
+              Animated.timing(animValue, {
+                toValue: 1,
+                duration: 400,
+                useNativeDriver: true,
+              }),
+              Animated.timing(animValue, {
+                toValue: 1,
+                duration: 400,
+                useNativeDriver: true,
+              }),
+            ]),
+            Animated.parallel([
+              Animated.timing(animValue, {
+                toValue: 0,
+                duration: 400,
+                useNativeDriver: true,
+              }),
+              Animated.timing(animValue, {
+                toValue: 0,
+                duration: 400,
+                useNativeDriver: true,
+              }),
+            ]),
+          ])
+        );
+      };
+
+      const anim1 = createDotAnimation(dot1Anim, 0);
+      const anim2 = createDotAnimation(dot2Anim, 200);
+      const anim3 = createDotAnimation(dot3Anim, 400);
+
+      anim1.start();
+      anim2.start();
+      anim3.start();
+
+      return () => {
+        anim1.stop();
+        anim2.stop();
+        anim3.stop();
+      };
+    }, []);
+
+    const getDotStyle = (animValue: Animated.Value) => ({
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: "#fff",
+      marginHorizontal: 4,
+      opacity: animValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0.3, 1],
+      }),
+      transform: [
+        {
+          scale: animValue.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0.8, 1.2],
+          }),
+        },
+      ],
+    });
+
+    return (
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        <Animated.View style={getDotStyle(dot1Anim)} />
+        <Animated.View style={getDotStyle(dot2Anim)} />
+        <Animated.View style={getDotStyle(dot3Anim)} />
+      </View>
+    );
+  };
+
   // Show conversation state indicator
-  const getStateText = () => {
-    switch (conversationState) {
-      case "IDLE":
-        return '"보쌤"을 불러보세요';
-      case "GREETING":
-        return "인사하는 중...";
-      case "LISTENING":
-        return "듣는 중...";
-      case "PROCESSING":
-        return "AI 처리 중...";
-      case "SPEAKING":
-        return "답변하는 중...";
-      default:
-        return "";
+  const getStateContent = () => {
+    if (conversationState === "IDLE") {
+      return <Text style={styles.statusText}>"보쌤"을 불러보세요</Text>;
     }
+    if (conversationState === "SPEAKING") {
+      return <></>;
+    }
+    if (conversationState === "LISTENING") {
+      return <></>;
+    }
+    return <LoadingDots />;
   };
 
   // Handle mic button press to change state
@@ -521,7 +600,7 @@ export default function BreathePage() {
 
       {/* Status Overlay */}
       <View style={styles.statusOverlay}>
-        <Text style={styles.statusText}>{getStateText()}</Text>
+        {getStateContent()}
 
         {/* Mic Button */}
         <View style={styles.micButtonContainer}>
