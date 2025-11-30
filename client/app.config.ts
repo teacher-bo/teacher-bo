@@ -77,7 +77,7 @@ const config: ExpoConfig = {
           "Allow $(PRODUCT_NAME) to access your microphone.",
       },
     ],
-    "expo-router",
+    ["expo-router", { origin: process.env.EXPO_PUBLIC_URL }],
     "expo-dev-client",
     [
       "expo-camera",
