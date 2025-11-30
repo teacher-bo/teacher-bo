@@ -23,6 +23,7 @@ import { useStreamingAudioService } from "../../hooks/useStreamingAudioService";
 import { useOpenAI } from "../../hooks/useOpenAI";
 import { usePollyTTS } from "../../hooks/usePollyTTS";
 import { useWakeWord } from "../../hooks/useWakeWord";
+import { ExpoAudioStreamModule } from "@siteed/expo-audio-studio";
 
 interface Message {
   id: string;
@@ -692,9 +693,9 @@ export default function BreathePage() {
         visible={showGameSelection}
         selectedGameKey={selectedGameKey}
         onSelect={(gameKey) => {
+          ExpoAudioStreamModule.requestPermissionsAsync();
           setSelectedGameKey(gameKey);
           setShowGameSelection(false);
-          console.log("Selected game:", gameKey);
         }}
       />
     </SafeAreaView>
