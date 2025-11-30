@@ -222,7 +222,7 @@ export class TranscribeService {
         formData,
         {
           headers: formData.getHeaders(),
-          timeout: 5000,
+          // timeout: 5000,
         },
       );
 

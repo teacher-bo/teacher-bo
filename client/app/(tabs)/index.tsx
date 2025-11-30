@@ -189,7 +189,7 @@ export default function BreathePage() {
       }
     },
     {
-      wakeWords: ["보쌤", "보셈", "보샘", "알리야"],
+      wakeWords: ["보쌤", "보셈", "보샘", "꽃샘", "못생", "요새", "글쎄"],
       language: "ko-KR",
       sensitivity: 0.6,
       continuous: true,
