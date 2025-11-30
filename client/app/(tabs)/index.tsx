@@ -397,8 +397,7 @@ export default function BreathePage() {
                 }
               } catch (err) {
                 console.error("AI or TTS error:", err);
-                setConversationState("IDLE");
-                startWakeWordListening();
+                setConversationState("LISTENING");
               }
             })();
           } else {
