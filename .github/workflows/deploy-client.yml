@@ -83,12 +83,15 @@ jobs:
             --paths "/*")
           echo "✅ Invalidation created: ${INVALIDATION_ID}"
 
+          echo "distribution_id=${{ env.CLOUDFRONT_DISTRIBUTION_ID }}" >> $GITHUB_OUTPUT
+          echo "invalidation_id=${INVALIDATION_ID}" >> $GITHUB_OUTPUT
+
       - name: Wait for invalidation
         run: |
           echo "⏳ Waiting for CloudFront invalidation to complete..."
           aws cloudfront wait invalidation-completed \
             --distribution-id ${{ steps.cloudfront.outputs.distribution_id }} \
-            --id ${{ steps.invalidation.outputs.invalidation_id }}
+            --id ${{ steps.cloudfront.outputs.invalidation_id }}
           echo "✅ Invalidation completed"
 
       - name: Get CloudFront domain

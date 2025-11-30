@@ -14,9 +14,10 @@ import { Ionicons } from "@expo/vector-icons";
 interface GameSelectionModalProps {
   visible: boolean;
   onSelect: (gameKey: string) => void;
+  selectedGameKey?: string | null;
 }
 
-interface Game {
+export interface Game {
   key: string;
   name: string;
   image?: { uri: string; width: number; height: number };
@@ -25,7 +26,7 @@ interface Game {
   disabled?: boolean;
 }
 
-const GAMES: Game[] = [
+export const GAMES: Game[] = [
   {
     key: "sabotage",
     name: "사보타지",
@@ -60,6 +61,7 @@ const GAMES: Game[] = [
 export default function GameSelectionModal({
   visible,
   onSelect,
+  selectedGameKey,
 }: GameSelectionModalProps) {
   const { width } = Dimensions.get("window");
   const modalWidth =
@@ -76,14 +78,20 @@ export default function GameSelectionModal({
         <View style={styles.backdrop} />
 
         <View style={[styles.modalView, { width: modalWidth }]}>
-          <ModalContent onSelect={onSelect} />
+          <ModalContent onSelect={onSelect} selectedGameKey={selectedGameKey} />
         </View>
       </View>
     </Modal>
   );
 }
 
-function ModalContent({ onSelect }: { onSelect: (gameKey: string) => void }) {
+function ModalContent({
+  onSelect,
+  selectedGameKey,
+}: {
+  onSelect: (gameKey: string) => void;
+  selectedGameKey?: string | null;
+}) {
   return (
     <>
       <Text style={styles.title}>어떤 게임을 질문하시겠어요?</Text>
@@ -92,7 +100,11 @@ function ModalContent({ onSelect }: { onSelect: (gameKey: string) => void }) {
         {GAMES.map((game) => (
           <TouchableOpacity
             key={game.key}
-            style={[styles.gameCard, game.disabled && styles.gameCardDisabled]}
+            style={[
+              styles.gameCard,
+              game.disabled && styles.gameCardDisabled,
+              selectedGameKey === game.key && styles.gameCardSelected,
+            ]}
             onPress={() => !game.disabled && onSelect(game.key)}
             activeOpacity={game.disabled ? 1 : 0.7}
             disabled={game.disabled}
@@ -197,6 +209,11 @@ const styles = StyleSheet.create({
   gameCardDisabled: {
     opacity: 0.5,
     backgroundColor: "rgba(255, 255, 255, 0.02)",
+  },
+  gameCardSelected: {
+    borderColor: "#4A9EFF",
+    borderWidth: 3,
+    backgroundColor: "rgba(74, 158, 255, 0.15)",
   },
   iconContainer: {
     width: 80,
