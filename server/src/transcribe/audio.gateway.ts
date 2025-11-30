@@ -33,6 +33,10 @@ export class AudioGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.setupEventRelay();
   }
 
+  private _vadEnabled(clientId: string) {
+    return this.clientVadFlags.get(clientId);
+  }
+
   private setupEventRelay() {
     const eventEmitter = this.transcribeService.getEventEmitter();
 
@@ -47,8 +51,7 @@ export class AudioGateway implements OnGatewayConnection, OnGatewayDisconnect {
     eventEmitter.on('vadEnded', (data) => {
       this.logger.log(`🎙️ VAD ended event received:`, data);
 
-      const clientVadEnabled = this.clientVadFlags.get(data.clientId);
-      if (!clientVadEnabled) {
+      if (!this._vadEnabled(data.clientId)) {
         return;
       }
 
@@ -84,8 +87,10 @@ export class AudioGateway implements OnGatewayConnection, OnGatewayDisconnect {
       // base64 디코딩
       const audioBuffer = Buffer.from(data.audioData, 'base64');
 
-      // 첫 오디오 청크 받을 때 자동으로 스트림 시작됨
-      this.transcribeService.addAudioChunk(client.id, audioBuffer);
+      if (this._vadEnabled(client.id)) {
+        // 첫 오디오 청크 받을 때 자동으로 스트림 시작됨
+        this.transcribeService.addAudioChunk(client.id, audioBuffer);
+      }
     } catch (error) {
       this.logger.error(`Error processing audio chunk:`, error);
 
