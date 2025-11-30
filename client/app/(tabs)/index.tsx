@@ -629,9 +629,11 @@ export default function BreathePage() {
                               </Text>
                               {message.page && message.page !== "null" && (
                                 <>
-                                  <Text style={styles.sourceSeparator}>
-                                    {" "}
-                                    •{" "}
+                                  <Text
+                                    style={styles.sourceSeparator}
+                                    numberOfLines={1}
+                                  >
+                                    {" • "}
                                   </Text>
                                   <TouchableOpacity
                                     onPress={() => {
