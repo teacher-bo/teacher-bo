@@ -4,12 +4,18 @@ import Pdf from 'react-native-pdf';
 import { Ionicons } from '@expo/vector-icons';
 import { Asset } from 'expo-asset';
 
-// 1. 게임 키와 실제 PDF 파일을 매핑합니다.
-// assets/rulebooks 폴더에 실제 파일이 있어야 합니다.
+// 1. PDF 파일 매핑
 export const RULEBOOK_FILES: Record<string, any> = {
-  rummikub: require('../assets/rulebooks/rummikub.pdf'),
-  halligalli: require('../assets/rulebooks/halligalli.pdf'),
-  sabotage: require('../assets/rulebooks/sabotage.pdf'),
+  rummikub: require('../assets/rulebooks/rummikub.rulebook.pdf'),
+  halligalli: require('../assets/rulebooks/halligalli.rulebook.pdf'),
+  sabotage: require('../assets/rulebooks/sabotage.rulebook.pdf'),
+};
+
+// 2. 게임 키 -> 영어 이름 매핑
+const GAME_NAMES: Record<string, string> = {
+  rummikub: "Rummikub",
+  halligalli: "Halli Galli",
+  sabotage: "Sabotage",
 };
 
 interface RulebookViewerProps {
@@ -20,40 +26,35 @@ interface RulebookViewerProps {
 }
 
 export default function RulebookViewer({ visible, gameKey, initialPage, onClose }: RulebookViewerProps) {
-  // 선택된 게임의 PDF 자원 가져오기
   const source = gameKey && RULEBOOK_FILES[gameKey] 
     ? { uri: Asset.fromModule(RULEBOOK_FILES[gameKey]).uri, cache: true } 
     : null;
 
   if (!source) return null;
 
+  const gameName = gameKey 
+    ? (GAME_NAMES[gameKey] || gameKey.charAt(0).toUpperCase() + gameKey.slice(1)) 
+    : "Game";
+
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={styles.container}>
-        {/* 헤더 */}
         <View style={styles.header}>
-          <Text style={styles.title}>규칙 설명서 (p.{initialPage})</Text>
+          <Text style={styles.title}>{gameName} Rulebook</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <Ionicons name="close" size={24} color="#fff" />
           </TouchableOpacity>
         </View>
 
-        {/* PDF 뷰어 */}
         <Pdf
           source={source}
-          page={initialPage} // 여기서 특정 페이지로 엽니다
-          onLoadComplete={(numberOfPages, filePath) => {
-            console.log(`Number of pages: ${numberOfPages}`);
-          }}
-          onPageChanged={(page, numberOfPages) => {
-            console.log(`Current page: ${page}`);
-          }}
-          onError={(error) => {
-            console.log(error);
-          }}
+          page={initialPage} // 페이지 이동
           style={styles.pdf}
-          fitPolicy={0} // 0:Width, 1:Height, 2:Both
+          fitPolicy={0} // 너비 맞춤
           spacing={10}
+          onError={(error) => {
+            console.log("PDF Load Error:", error);
+          }}
         />
       </View>
     </Modal>

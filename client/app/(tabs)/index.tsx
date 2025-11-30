@@ -20,6 +20,7 @@ import { Text } from "@/components/ui/Text";
 import Breathe from "@/components/Breathe";
 import GameSelectionModal, { GAMES } from "@/components/GameSelectionModal";
 import MicButton from "@/components/MicButton";
+import RulebookViewer from "@/components/RulebookViewer";
 import { useStreamingAudioService } from "../../hooks/useStreamingAudioService";
 import { useOpenAI } from "../../hooks/useOpenAI";
 import { usePollyTTS } from "../../hooks/usePollyTTS";
@@ -55,6 +56,8 @@ export default function BreathePage() {
   // Game selection state
   const [selectedGameKey, setSelectedGameKey] = useState<string | null>(null);
   const [showGameSelection, setShowGameSelection] = useState(true);
+  const [showRulebook, setShowRulebook] = useState(false);
+  const [rulebookPage, setRulebookPage] = useState(1);
 
   const userTranscriptRef = useRef<string>("");
   // roll back here
@@ -73,7 +76,7 @@ export default function BreathePage() {
       timestamp: new Date(),
       source:
         "게임은 시계방향(왼쪽)으로 진행된다. 각 게임자가 맨 처음 타일을 내려놓기 위해서는 타일의 숫자 합이 30이상이 되도록 만들어서 한 세트 또는 그 이상의 세트를 내려놓아야 하며 이것을 등록이라고 한다.",
-      page: "1",
+      page: "2",
     },
   ]);
 
@@ -736,15 +739,9 @@ export default function BreathePage() {
                                   </Text>
                                   <TouchableOpacity
                                     onPress={() => {
-                                      // TODO: Replace with actual rulebook URL
-                                      const rulebookUrl = `https://example.com/rulebooks/${message.source}/page/${message.page}`;
-                                      Linking.openURL(rulebookUrl).catch(
-                                        (err) =>
-                                          console.error(
-                                            "Failed to open URL:",
-                                            err
-                                          )
-                                      );
+                                      const pageNum = parseInt(message.page || "1", 10);
+                                      setRulebookPage(pageNum);
+                                      setShowRulebook(true);
                                     }}
                                     hitSlop={{
                                       top: 10,
@@ -798,6 +795,14 @@ export default function BreathePage() {
           setSelectedGameKey(gameKey);
           setShowGameSelection(false);
         }}
+      />
+
+      {/* 룰북 뷰어 컴포넌트 추가 */}
+      <RulebookViewer 
+        visible={showRulebook}
+        gameKey={selectedGameKey || "rummikub"}
+        initialPage={rulebookPage}
+        onClose={() => setShowRulebook(false)}
       />
     </SafeAreaView>
   );
