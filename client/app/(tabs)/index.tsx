@@ -3,7 +3,6 @@ import {
   Dimensions,
   Platform,
   StyleSheet,
-  Text,
   View,
   TouchableOpacity,
   ScrollView,
@@ -11,12 +10,12 @@ import {
   Pressable,
   Linking,
   Image,
-  ImageBackground,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
+import { Text } from "@/components/ui/Text";
 import Breathe from "@/components/Breathe";
 import GameSelectionModal, { GAMES } from "@/components/GameSelectionModal";
 import MicButton from "@/components/MicButton";
@@ -45,7 +44,6 @@ const BREATHE_SIZE_REDUCTION = 0.7; // Scale factor for Breathe when expanded (7
 export default function BreathePage() {
   const wind = Dimensions.get("window");
   const width = Platform.OS === "web" ? 440 : wind.width;
-  const height = wind.height;
 
   const generateChatSessionId = () =>
     `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -706,7 +704,7 @@ export default function BreathePage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: "#242b38",
   },
   backdrop: {
     position: "absolute",

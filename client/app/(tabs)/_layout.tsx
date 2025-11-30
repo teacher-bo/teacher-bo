@@ -14,6 +14,9 @@ export default function TabLayout() {
         tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
         headerShown: false,
         tabBarStyle: { display: "none" },
+        sceneStyle: {
+          backgroundColor: "#242b38",
+        },
       }}
     >
       <Tabs.Screen

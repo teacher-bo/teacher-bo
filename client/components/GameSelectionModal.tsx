@@ -3,13 +3,13 @@ import {
   Image,
   Modal,
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   Dimensions,
   Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { Text } from "@/components/ui/Text";
 
 interface GameSelectionModalProps {
   visible: boolean;
@@ -183,10 +183,10 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   title: {
-    fontSize: 24,
-    fontWeight: "700",
+    fontSize: 20,
+    fontWeight: 500,
     color: "#fff",
-    marginBottom: 32,
+    marginBottom: 24,
     textAlign: "center",
   },
   gamesGrid: {

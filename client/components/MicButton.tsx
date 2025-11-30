@@ -42,15 +42,8 @@ export default function MicButton({
         }
         style={styles.gradient}
       >
-        {/* Outer ring for active state */}
-        {isActive && (
-          <View style={styles.activeRing}>
-            <View style={styles.activeRingInner} />
-          </View>
-        )}
-
         {/* Mic icon */}
-        <Ionicons name={isActive ? "mic" : "mic-off"} size={32} color="#fff" />
+        <Ionicons name={isActive ? "stop" : "mic"} size={32} color="#fff" />
       </LinearGradient>
 
       {/* Pulsing effect when listening */}
@@ -72,10 +65,6 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
     elevation: 8,
   },
   activeRing: {
