@@ -57,7 +57,27 @@ export default function BreathePage() {
   const [showGameSelection, setShowGameSelection] = useState(true);
 
   const userTranscriptRef = useRef<string>("");
-  const [messages, setMessages] = useState<Message[]>([]);
+  // roll back here
+  // const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      isUser: false,
+      textItems: [
+        {
+          resultId: `item_${Date.now()}`,
+          text:
+            "루미큐브 게임은 시계방향으로 진행되며, 각 플레이어는 처음에 타일의 숫자 합이 30 이상이 되도록 타일을 내려놓아야 합니다. 이후에는 테이블의 타일과 자신의 타일을 조합하여 내려놓거나, 내려놓을 타일이 없으면 풀에서 타일을 한 개 가져옵니다. 게임은 한 플레이어가 타일을 모두 내려놓고 '루미큐브'를 외칠 때까지 계속됩니다.",
+        },
+      ],
+      timestamp: new Date(),
+      source:
+        "게임은 시계방향(왼쪽)으로 진행된다. 각 게임자가 맨 처음 타일을 내려놓기 위해서는 타일의 숫자 합이 30이상이 되도록 만들어서 한 세트 또는 그 이상의 세트를 내려놓아야 하며 이것을 등록이라고 한다.",
+      page: "1",
+    },
+  ]);
+
+  
   const [isExpanded, setIsExpanded] = useState(false);
   const [breatheOffsetY, setBreatheOffsetY] = useState(0);
   const [breatheScale, setBreatheScale] = useState(1); // Scale for Breathe size
