@@ -14,7 +14,7 @@ env:
   AWS_REGION: ap-northeast-2
 
 jobs:
-  deploy:
+  deploy-rag-server:
     # Prevent this job from running while keeping the workflow file intact.
     if: ${{ false }}
     runs-on: ubuntu-latest

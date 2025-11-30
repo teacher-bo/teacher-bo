@@ -15,7 +15,7 @@ env:
   CLOUDFRONT_DISTRIBUTION_ID: E2HHRGQCO89EBY
 
 jobs:
-  deploy:
+  deploy-client:
     runs-on: ubuntu-latest
 
     steps:
