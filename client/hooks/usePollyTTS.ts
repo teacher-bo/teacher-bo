@@ -157,15 +157,30 @@ export const usePollyTTS = () => {
           shouldRouteThroughEarpiece: false,
         });
 
-        // 2. TTS API 호출
+        // 2. iOS 자동재생 정책 우회: 사용자 제스처 컨텍스트 내에서 빈 오디오 로드
+        // 매우 짧은 무음 MP3 (44 bytes, 약 0.026초)
+        const silentAudio =
+          "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAADhAC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAA4T/gNH0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+
+        try {
+          // 사용자 제스처 컨텍스트에서 즉시 오디오 플레이어 초기화
+          player.replace({ uri: silentAudio } as AudioSource);
+          await player.play();
+          console.log("Silent audio loaded to preserve user gesture context");
+        } catch (initError) {
+          console.warn("Failed to initialize silent audio:", initError);
+          // 계속 진행 - 일부 환경에서는 여전히 작동할 수 있음
+        }
+
+        // 3. TTS API 호출 (비동기)
         const audioUri = await synthesizeAudio(text, options);
 
-        // 3. 오디오 재생
+        // 4. 실제 TTS 오디오로 교체 및 재생
         player.replace({ uri: audioUri } as AudioSource);
-        player.play();
+        await player.play();
         console.log("Successfully started playing Polly TTS audio");
 
-        // 4. 재생 완료까지 대기
+        // 5. 재생 완료까지 대기
         await waitForPlaybackComplete();
       } catch (err) {
         console.error("Error in speakText:", err);
