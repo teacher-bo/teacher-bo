@@ -35,6 +35,7 @@ class PromptTemplate:
       * The description should contain ONLY the direct answer/conclusion, NOT the source reference.
     - source: Extract the specific sentence(s) from the "Source:" field that directly supports your answer.
       * The Context format is "[Type: ..., Source: <TEXT>]". You must extract ONLY the <TEXT> part.
+      * CRITICAL: Do NOT use the 'A:' (Answer) text from a QA pair as the source. The source must come from the '[... Source: ...]' header.
       * Do NOT include the metadata tags like "[Type: ...]" or "Source:".
       * Do not copy the entire paragraph if only one sentence is relevant.
       * Keep the text exact as it appears in the Source.
