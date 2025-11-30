@@ -10,7 +10,14 @@ envConfig({ path: ".env" });
 const API_PORT = process.env.EXPO_PUBLIC_API_PORT || "1002";
 const API_URL = `http://localhost:${API_PORT}`;
 
+// 1. 기본 설정 가져오기
 const config = getDefaultConfig(__dirname);
+
+// react-pdf의 canvas 에러 해결을 위한 shim 연결
+config.resolver.extraNodeModules = {
+  ...config.resolver.extraNodeModules,
+  canvas: require.resolve("./shim.js"),
+};
 
 const ALIASES = {
   tslib: require.resolve("tslib/tslib.es6.js"),
@@ -18,11 +25,7 @@ const ALIASES = {
 
 const apiProxy = createProxyMiddleware({
   target: API_URL,
-  // pathRewrite: {
-  //   "^/": "/api/",
-  // },
   changeOrigin: true,
-  // ws: false,
   secure: false,
   logLevel: "debug",
   onError: (err, req, res) => {
@@ -69,4 +72,5 @@ const extendedConfig = {
     },
   },
 };
+
 module.exports = mergeConfig(config, extendedConfig);
