@@ -9,6 +9,7 @@ import { getMainDefinition } from "@apollo/client/utilities";
 import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
 import { createClient } from "graphql-ws";
 import { ENV } from "../utils/env";
+import { Platform } from "react-native";
 
 const API_URL = ENV.API_URL;
 
@@ -23,9 +24,10 @@ let wsImpl: typeof WebSocket | undefined;
 if (typeof WebSocket === "undefined") {
   // We're in a Node.js environment
   try {
-    // Dynamic import for Node.js
-    const ws = require("ws");
-    wsImpl = ws;
+    if (Platform.OS === "web") {
+      const ws = require("ws");
+      wsImpl = ws;
+    }
   } catch (err) {
     console.warn("WebSocket implementation not available:", err);
   }
