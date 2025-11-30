@@ -67,11 +67,25 @@ export const useWakeWord = (
   const setupAudioDataHandler = useCallback(() => {
     onAudioDataRef.current = async (event: AudioDataEvent): Promise<void> => {
       try {
-        const { data, eventDataSize } = event;
+        const { data: d, eventDataSize } = event;
+        const data = d as any;
 
         if (!eventDataSize || eventDataSize === 0) return;
 
-        if (data instanceof Int16Array) {
+        if (typeof data === "string") {
+          sendAudioChunk(data, 0);
+        } else if (data instanceof Float32Array) {
+          // Float32Array를 PCM 16-bit로 변환 후 Base64 인코딩
+          const pcmData = new Int16Array(data.length);
+          for (let i = 0; i < data.length; i++) {
+            const sample = Math.max(-1, Math.min(1, data[i]));
+            pcmData[i] = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
+          }
+
+          const uint8Array = new Uint8Array(pcmData.buffer);
+          const base64String = btoa(String.fromCharCode(...uint8Array));
+          sendAudioChunk(base64String, 0);
+        } else if (data instanceof Int16Array) {
           const uint8Array = new Uint8Array(data.buffer);
           const base64String = btoa(String.fromCharCode(...uint8Array));
           sendAudioChunk(base64String, 0);
