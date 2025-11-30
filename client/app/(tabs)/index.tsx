@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { ExpoAudioStreamModule } from "@siteed/expo-audio-studio";
 
 import { Text } from "@/components/ui/Text";
 import Breathe from "@/components/Breathe";
@@ -23,7 +24,6 @@ import { useStreamingAudioService } from "../../hooks/useStreamingAudioService";
 import { useOpenAI } from "../../hooks/useOpenAI";
 import { usePollyTTS } from "../../hooks/usePollyTTS";
 import { useWakeWord } from "../../hooks/useWakeWord";
-import { ExpoAudioStreamModule } from "@siteed/expo-audio-studio";
 
 interface Message {
   id: string;

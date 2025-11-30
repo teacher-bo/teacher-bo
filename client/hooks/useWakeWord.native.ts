@@ -1,14 +1,84 @@
 import { useState, useCallback, useRef } from "react";
 import { Platform } from "react-native";
+
 import {
   useSpeechRecognitionEvent,
   ExpoSpeechRecognitionModule,
-  ExpoSpeechRecognitionOptions,
 } from "expo-speech-recognition";
-import type {
-  UseWakeWordOptions,
-  UseWakeWordReturn,
-} from "./useWakeWord.types";
+
+interface UseWakeWordOptions {
+  wakeWords: string[];
+  language?: string;
+  sensitivity?: number; // 0-1, web에서만 사용
+  continuous?: boolean; // web에서만 사용
+}
+
+interface UseWakeWordReturn {
+  isListening: boolean;
+  startListening: () => Promise<void>;
+  stopListening: () => Promise<void>;
+  error: string | null;
+}
+
+// Web Speech Recognition 타입 정의
+interface SpeechRecognitionEvent {
+  results: SpeechRecognitionResultList;
+  resultIndex: number;
+}
+
+interface SpeechRecognitionResult {
+  [index: number]: SpeechRecognitionAlternative;
+  length: number;
+  isFinal: boolean;
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+
+interface SpeechRecognitionResultList {
+  [index: number]: SpeechRecognitionResult;
+  length: number;
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  grammars: any;
+  interimResults: boolean;
+  lang: string;
+  maxAlternatives: number;
+  serviceURI: string;
+  start(): void;
+  stop(): void;
+  abort(): void;
+  onaudiostart: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onaudioend: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onend: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onerror: ((this: SpeechRecognition, ev: any) => any) | null;
+  onnomatch:
+    | ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any)
+    | null;
+  onresult:
+    | ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any)
+    | null;
+  onsoundstart: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onsoundend: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onspeechstart: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onspeechend: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onstart: ((this: SpeechRecognition, ev: Event) => any) | null;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition: {
+      new (): SpeechRecognition;
+    };
+    webkitSpeechRecognition: {
+      new (): SpeechRecognition;
+    };
+  }
+}
 
 export const useWakeWord = (
   onWakeWordDetected: () => void,
@@ -21,7 +91,6 @@ export const useWakeWord = (
 ): UseWakeWordReturn => {
   const [isListening, setIsListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const shouldContinueRef = useRef(false);
 
   // 웨이크워드 감지 함수
   const checkForWakeWords = useCallback(
@@ -39,8 +108,10 @@ export const useWakeWord = (
     [options.wakeWords, onWakeWordDetected]
   );
 
+  const shouldContinueRef = useRef(false);
+
   const startRecognition = useCallback(async () => {
-    const config: ExpoSpeechRecognitionOptions = {
+    const config: any = {
       lang: options.language || "ko-KR",
       interimResults: true,
       maxAlternatives: 1,
@@ -196,9 +267,9 @@ export const useWakeWord = (
       console.log(
         "🛑 Stopping speech recognition, setting shouldContinue = false"
       );
-      shouldContinueRef.current = false;
+      shouldContinueRef.current = false; // continuous 모드 비활성화
 
-      await ExpoSpeechRecognitionModule.stop();
+      ExpoSpeechRecognitionModule.stop();
       console.log("✅ Speech recognition stopped");
 
       setIsListening(false);
