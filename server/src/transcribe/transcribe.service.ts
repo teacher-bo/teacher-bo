@@ -209,6 +209,7 @@ export class TranscribeService {
         filename: 'audio.pcm',
         contentType: 'application/octet-stream',
       });
+      formData.append('session_id', clientId);
 
       const response = await axios.post(
         `${this.vadServiceUrl}/detect`,
@@ -240,6 +241,19 @@ export class TranscribeService {
     }
   }
 
+  // VAD 세션 리셋
+  async resetVADSession(clientId: string): Promise<void> {
+    try {
+      await axios.post(`${this.vadServiceUrl}/reset`, null, {
+        params: { session_id: clientId },
+        timeout: 3000,
+      });
+      this.logger.log(`VAD session reset for client: ${clientId}`);
+    } catch (error) {
+      this.logger.warn(`Failed to reset VAD session: ${error.message}`);
+    }
+  }
+
   // transcription 스트림 중지
   async stopTranscriptionStream(clientId: string): Promise<void> {
     this.logger.log(`Stopping transcription stream for client: ${clientId}`);
@@ -266,7 +280,10 @@ export class TranscribeService {
       }
     }
 
-    // 3. 리소스 정리
+    // 3. VAD 세션 리셋
+    await this.resetVADSession(clientId);
+
+    // 4. 리소스 정리
     this.audioBuffers.delete(clientId);
     this.transcribePromises.delete(clientId);
 
