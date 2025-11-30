@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   iconContainerDisabled: {
-    backgroundColor: "rgba(100, 100, 100, 0.2) !important" as any,
+    backgroundColor: "rgba(100, 100, 100, 0.2)",
   },
   gameName: {
     marginTop: -32,

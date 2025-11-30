@@ -1565,6 +1565,11 @@
     "@jridgewell/resolve-uri" "^3.1.0"
     "@jridgewell/sourcemap-codec" "^1.4.14"
 
+"@logrocket/react-native@^1.59.0":
+  version "1.59.0"
+  resolved "https://registry.yarnpkg.com/@logrocket/react-native/-/react-native-1.59.0.tgz#06e810ba811361a9dc390f498fdd04cc615bd9be"
+  integrity sha512-yYTSXiP4Ra3p1jeiZcSyWSC0+3e8O8JZfdclgU7C7XY9IaClQJ4RvJAUviuNHAo/mKoJwRjwdwBrwtUCTMvBMA==
+
 "@napi-rs/wasm-runtime@^0.2.11":
   version "0.2.12"
   resolved "https://registry.yarnpkg.com/@napi-rs/wasm-runtime/-/wasm-runtime-0.2.12.tgz#3e78a8b96e6c33a6c517e1894efbd5385a7cb6f2"
@@ -5382,6 +5387,11 @@ log-symbols@^2.2.0:
   integrity sha512-VeIAFslyIerEJLXHziedo2basKbMKtTw3vfn5IzG0XTjhAVEJyNHnL2p7vc+wBDSdQuUpNw3M2u6xb9QsAY5Eg==
   dependencies:
     chalk "^2.0.1"
+
+logrocket@^10.1.1:
+  version "10.1.1"
+  resolved "https://registry.yarnpkg.com/logrocket/-/logrocket-10.1.1.tgz#73a1cfbc2a22b666d5b9ecbeb135dc33ed12af19"
+  integrity sha512-Yv3ociIxbYxyY5sevTHS+I4ngtvQK6SGeeOBgg/X2R1hyqeHOPXTmrNUSu1+bG9g96VF0aR0rcyNwXDfuUFAtQ==
 
 loose-envify@^1.0.0, loose-envify@^1.4.0:
   version "1.4.0"
