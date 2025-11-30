@@ -87,10 +87,11 @@ export class AudioGateway implements OnGatewayConnection, OnGatewayDisconnect {
       // base64 디코딩
       const audioBuffer = Buffer.from(data.audioData, 'base64');
 
-      if (this._vadEnabled(client.id)) {
-        // 첫 오디오 청크 받을 때 자동으로 스트림 시작됨
-        this.transcribeService.addAudioChunk(client.id, audioBuffer);
-      }
+      this.transcribeService.addAudioChunk(
+        client.id,
+        audioBuffer,
+        this._vadEnabled(client.id),
+      );
     } catch (error) {
       this.logger.error(`Error processing audio chunk:`, error);
 

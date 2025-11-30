@@ -168,7 +168,11 @@ export class TranscribeService {
   }
 
   // 오디오 청크 추가 (첫 청크 받을 때 자동으로 스트림 시작)
-  addAudioChunk(clientId: string, audioData: Buffer): void {
+  addAudioChunk(
+    clientId: string,
+    audioData: Buffer,
+    vadEnabled: boolean,
+  ): void {
     // 스트림이 아직 시작되지 않았다면 시작
     if (!this.isTranscribing.get(clientId)) {
       this.logger.log(
@@ -191,8 +195,10 @@ export class TranscribeService {
         buffers.push(audioData);
       }
 
-      // VAD 서비스로 오디오 전송
-      this.sendAudioToVAD(clientId, audioData);
+      if (vadEnabled) {
+        // VAD 서비스로 오디오 전송
+        this.sendAudioToVAD(clientId, audioData);
+      }
     } else {
       this.logger.warn(`No active transcription for client: ${clientId}`);
     }
