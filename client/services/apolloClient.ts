@@ -23,13 +23,13 @@ const httpLink = createHttpLink({
 let wsImpl: typeof WebSocket | undefined;
 if (typeof WebSocket === "undefined") {
   // We're in a Node.js environment
-  try {
-    if (Platform.OS === "web") {
-      const ws = require("ws");
-      wsImpl = ws;
+  if (Platform.OS === "web") {
+    try {
+      // const ws = require("ws");
+      // wsImpl = ws;
+    } catch (err) {
+      console.warn("WebSocket implementation not available:", err);
     }
-  } catch (err) {
-    console.warn("WebSocket implementation not available:", err);
   }
 }
 
