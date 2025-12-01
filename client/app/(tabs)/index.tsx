@@ -716,7 +716,17 @@ export default function BreathePage() {
                               .join(" ")}
                           </Text>
                           {!message.isUser && message.source && isExpanded && (
-                            <View style={styles.sourceContainer}>
+                            <TouchableOpacity
+                              style={styles.sourceContainer}
+                              onPress={() => {
+                                const pageNum = parseInt(
+                                  message.page || "1",
+                                  10
+                                );
+                                setRulebookPage(pageNum);
+                                setShowRulebook(true);
+                              }}
+                            >
                               <Ionicons
                                 name="document-text-outline"
                                 size={12}
@@ -756,7 +766,7 @@ export default function BreathePage() {
                                   </TouchableOpacity>
                                 </>
                               )}
-                            </View>
+                            </TouchableOpacity>
                           )}
                         </View>
                       );
@@ -1008,10 +1018,10 @@ const styles = StyleSheet.create({
   gameInfoBackground: {
     position: "absolute",
     top: "-460%",
-    left: "30%",
+    left: "0%",
     right: 0,
     bottom: 0,
-    opacity: 0.6,
+    opacity: 0.4,
   },
   gameInfoContent: {
     flexDirection: "row",
