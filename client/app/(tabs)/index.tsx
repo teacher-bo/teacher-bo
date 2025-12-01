@@ -204,12 +204,12 @@ export default function BreathePage() {
 
         addMessage(false, "안녕하세요! 무엇을 도와드릴까요?");
         await speakText(text);
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        setConversationState("LISTENING");
       } catch (err) {
         console.error("Greeting TTS failed", err);
-        setConversationState("IDLE");
       }
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      setConversationState("LISTENING");
     },
     {
       wakeWords: ["보쌤", "보셈", "보샘", "꽃샘", "못생", "요새", "글쎄"],
