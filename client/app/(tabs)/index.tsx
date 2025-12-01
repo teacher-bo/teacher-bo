@@ -232,7 +232,7 @@ export default function BreathePage() {
         console.error("Greeting TTS failed", err);
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 700));
       setConversationState("LISTENING");
     },
     {
