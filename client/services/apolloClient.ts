@@ -25,8 +25,8 @@ if (typeof WebSocket === "undefined") {
   // We're in a Node.js environment
   if (Platform.OS === "web") {
     try {
-      // const ws = require("ws");
-      // wsImpl = ws;
+      const ws = require("ws");
+      wsImpl = ws;
     } catch (err) {
       console.warn("WebSocket implementation not available:", err);
     }
