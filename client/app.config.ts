@@ -57,6 +57,7 @@ const config: ExpoConfig = {
     shortName: "보선생 TeacherBo",
   },
   plugins: [
+    "expo-web-browser",
     "@siteed/expo-audio-studio",
     [
       "expo-speech-recognition",

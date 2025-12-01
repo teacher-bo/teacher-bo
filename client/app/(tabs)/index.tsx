@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import * as WebBrowser from "expo-web-browser";
 import {
   Dimensions,
   Platform,
@@ -25,6 +26,15 @@ import { useStreamingAudioService } from "../../hooks/useStreamingAudioService";
 import { useOpenAI } from "../../hooks/useOpenAI";
 import { usePollyTTS } from "../../hooks/usePollyTTS";
 import { useWakeWord } from "../../hooks/useWakeWord";
+
+export const RULEBOOK_URLS: Record<string, any> = {
+  rummikub:
+    "https://teacher-bo-amazon-transcribe-voca-filter.s3.ap-northeast-2.amazonaws.com/rulebooks/rummikub.rulebook.pdf",
+  halligalli:
+    "https://teacher-bo-amazon-transcribe-voca-filter.s3.ap-northeast-2.amazonaws.com/rulebooks/halligalli.rulebook.pdf",
+  sabotage:
+    "https://teacher-bo-amazon-transcribe-voca-filter.s3.ap-northeast-2.amazonaws.com/rulebooks/sabotage.rulebook.pdf",
+};
 
 interface Message {
   id: string;
@@ -60,7 +70,21 @@ export default function BreathePage() {
   const [rulebookPage, setRulebookPage] = useState(1);
 
   const userTranscriptRef = useRef<string>("");
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: "1",
+      isUser: false,
+      textItems: [
+        {
+          resultId: "",
+          text: "조커는 놓인 자리에 해당하는 숫자로 계산하여 사용할 수 있습니다.",
+        },
+      ],
+      timestamp: new Date(),
+      source: "첫 등록에 사용된 조커는 놓인 자리에 해당하는 숫자를 의미한다.",
+      page: "1",
+    },
+  ]);
 
   // dummy message for testing
   // const [messages, setMessages] = useState<Message[]>([
@@ -725,6 +749,19 @@ export default function BreathePage() {
                                 );
                                 setRulebookPage(pageNum);
                                 setShowRulebook(true);
+
+                                if (Platform.OS === "ios" && selectedGameKey) {
+                                  WebBrowser.openBrowserAsync(
+                                    `${RULEBOOK_URLS[selectedGameKey]}#page=${pageNum}`,
+                                    {
+                                      showTitle: false,
+                                      presentationStyle:
+                                        WebBrowser.WebBrowserPresentationStyle
+                                          .FORM_SHEET,
+                                      controlsColor: "#fff",
+                                    }
+                                  );
+                                }
                               }}
                             >
                               <Ionicons
