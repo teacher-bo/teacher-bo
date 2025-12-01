@@ -70,21 +70,7 @@ export default function BreathePage() {
   const [rulebookPage, setRulebookPage] = useState(1);
 
   const userTranscriptRef = useRef<string>("");
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      isUser: false,
-      textItems: [
-        {
-          resultId: "",
-          text: "조커는 놓인 자리에 해당하는 숫자로 계산하여 사용할 수 있습니다.",
-        },
-      ],
-      timestamp: new Date(),
-      source: "첫 등록에 사용된 조커는 놓인 자리에 해당하는 숫자를 의미한다.",
-      page: "1",
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
 
   // dummy message for testing
   // const [messages, setMessages] = useState<Message[]>([

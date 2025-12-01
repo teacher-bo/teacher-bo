@@ -112,7 +112,7 @@ function ModalContent({
             {game.image ? (
               <Image
                 source={game.image}
-                resizeMode="center"
+                resizeMode="contain"
                 style={{
                   width: "100%",
                   height: "100%",
