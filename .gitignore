@@ -1,5 +1,9 @@
 .env
 deploy.zip
+.DS_Store
+
+# AI prompt history with personal paths
+.ai-prompt-history/
 
 # Python virtual environment
 venv/
@@ -19,4 +23,3 @@ venv/
 .venv/
 *.db
 *.sqlite
-.DS_Store
