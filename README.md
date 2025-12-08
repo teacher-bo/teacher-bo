@@ -17,6 +17,10 @@ GPT, Gemini 등 기존 LLM의 부정확한 답변 (Hallucination)
 
 → 룰북에 근거한 신뢰성 있는 답변
 
+## 기존 서비스들과 차별점
+<img width="948" height="437" alt="스크린샷 2025-12-08 16 15 22" src="https://github.com/user-attachments/assets/bf1b1ad1-5734-43fc-8ecc-680d6b4cc41f" />
+
+
 ## 프로젝트 소개
 
 Teacher Bo는 보드게임 플레이어들이 게임 규칙을 쉽게 이해하고 궁금한 점을 실시간으로 해결할 수 있도록 돕는 AI 챗봇 서비스입니다. RAG(Retrieval-Augmented Generation) 기술을 활용하여 정확한 규칙 정보를 제공하며, 음성 인식 및 TTS 기능을 통해 자연스러운 대화형 인터페이스를 제공합니다.
