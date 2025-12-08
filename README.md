@@ -4,6 +4,10 @@
 
 서강대학교 산학프로젝트 - 보선생팀
 
+## Resources
+- [Poster](./assets/teacerbo-poster.pdf) - 보선생 포스터
+- [Pamphlet](./assets/teacherbo-pamphlet.pdf) - 보선생 팜플렛
+
 ## 프로젝트 배경
 **1. 보드게임을 할 때 룰북을 찾아보는 번거로움**
    
