@@ -7,6 +7,7 @@
 ## Resources
 - [보선생 포스터](./assets/teacerbo-poster.pdf)
 - [보선생 팜플렛](./assets/teacherbo-pamphlet.pdf)
+- [RAG SYSTEM 설명 README](./RAG_SYSTEM.md)
 
 ## 프로젝트 배경
 **1. 보드게임을 할 때 룰북을 찾아보는 번거로움**
