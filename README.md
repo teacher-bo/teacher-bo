@@ -5,6 +5,9 @@
 서강대학교 산학프로젝트 - 보선생팀
 
 ## Resources
+- [문제 인식 영상 (YouTube)](https://www.youtube.com/watch?v=zj_kYvwl5Hg)
+- [중간평가 영상 (YouTube)](https://www.youtube.com/watch?v=jJdUVBK_UEU)
+  
 - [보선생 포스터](./assets/teacerbo-poster.pdf)
 - [보선생 팜플렛](./assets/teacherbo-pamphlet.pdf)
 - [RAG SYSTEM 설명 README](./RAG_SYSTEM.md)
