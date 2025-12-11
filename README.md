@@ -47,23 +47,18 @@ Teacher Bo는 보드게임 플레이어들이 게임 규칙을 쉽게 이해하�
 
 - **Node.js**: >= 18.0.0
 - **Yarn**: 1.22.22
-- **Python**: 3.13
-- **Docker**: 최신 버전
-- **Package Manager**: pipenv (Python)
+- **Python**: 3.13 (+Pipenv)
 
 ### Frontend
 
-- **Framework**: React Native (Expo)
-- **UI**: Expo Router, React Native Reanimated
-- **State Management**: Apollo Client
 - **Language**: TypeScript
+- **Framework**: React Native (Expo)
 
 ### Backend
 
-- **Framework**: NestJS
-- **Database**: PostgreSQL (Prisma ORM)
-- **API**: GraphQL (Apollo Server), REST, WebSocket
 - **Language**: TypeScript
+- **Framework**: NestJS
+- **API**: GraphQL (Apollo Server), WebSocket (Socket.io)
 
 ### AI/ML
 
@@ -91,7 +86,7 @@ React Native(Expo) 기반 크로스 플랫폼 모바일/웹 클라이언트
 NestJS 기반 메인 백엔드 서버
 
 - GraphQL API 및 WebSocket 지원
-- AWS Transcribe/Polly 통합
+- AWS Transcribe/Polly
 
 ### `/rag-server`
 
