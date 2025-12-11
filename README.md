@@ -5,29 +5,30 @@
 서강대학교 산학프로젝트 - 보선생팀
 
 ## Resources
+
 - [문제 인식 영상 (YouTube)](https://www.youtube.com/watch?v=zj_kYvwl5Hg)
 - [중간평가 영상 (YouTube)](https://www.youtube.com/watch?v=jJdUVBK_UEU)
-  
 - [보선생 포스터](./assets/teacerbo-poster.pdf)
 - [보선생 팜플렛](./assets/teacherbo-pamphlet.pdf)
 - [RAG SYSTEM 설명 README](./RAG_SYSTEM.md)
 
 ## 프로젝트 배경
+
 **1. 보드게임을 할 때 룰북을 찾아보는 번거로움**
-   
+
 게임 중 의견이 엇갈리는 상황에 룰북을 찾아보는 데에 많은 시간 소요
 
 → 음성을 통한 간편한 질문과 답변
 
 **2. 기존 LLM의 한계**
-   
+
 GPT, Gemini 등 기존 LLM의 부정확한 답변 (Hallucination)
 
 → 룰북에 근거한 신뢰성 있는 답변
 
 ## 기존 서비스들과 차별점
-<img width="948" height="437" alt="스크린샷 2025-12-08 16 15 22" src="https://github.com/user-attachments/assets/bf1b1ad1-5734-43fc-8ecc-680d6b4cc41f" />
 
+<img width="948" height="437" alt="스크린샷 2025-12-08 16 15 22" src="https://github.com/user-attachments/assets/bf1b1ad1-5734-43fc-8ecc-680d6b4cc41f" />
 
 ## 프로젝트 소개
 
@@ -55,7 +56,7 @@ Teacher Bo는 보드게임 플레이어들이 게임 규칙을 쉽게 이해하�
 
 - **Framework**: React Native (Expo)
 - **UI**: Expo Router, React Native Reanimated
-- **State Management**: Zustand, Apollo Client
+- **State Management**: Apollo Client
 - **Language**: TypeScript
 
 ### Backend
@@ -199,4 +200,3 @@ pipenv run python main.py
 <a href="https://github.com/teacher-bo/teacher-bo/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=teacher-bo/teacher-bo" />
 </a>
-
