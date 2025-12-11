@@ -33,12 +33,6 @@ GPT, Gemini 등 기존 LLM의 부정확한 답변 (Hallucination)
 
 Teacher Bo는 보드게임 플레이어들이 게임 규칙을 쉽게 이해하고 궁금한 점을 실시간으로 해결할 수 있도록 돕는 AI 챗봇 서비스입니다. RAG(Retrieval-Augmented Generation) 기술을 활용하여 정확한 규칙 정보를 제공하며, 음성 인식 및 TTS 기능을 통해 자연스러운 대화형 인터페이스를 제공합니다.
 
-## Contributors
-
-<a href="https://github.com/teacher-bo/teacher-bo/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=teacher-bo/teacher-bo" />
-</a>
-
 ## 주요 기능
 
 - **보드게임 규칙 질의응답**: RAG 기반으로 정확한 게임 규칙 안내
@@ -199,3 +193,10 @@ cd silero-vad
 pipenv install
 pipenv run python main.py
 ```
+
+## Contributors
+
+<a href="https://github.com/teacher-bo/teacher-bo/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=teacher-bo/teacher-bo" />
+</a>
+
