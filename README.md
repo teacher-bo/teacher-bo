@@ -40,7 +40,6 @@ Teacher Bo는 보드게임 플레이어들이 게임 규칙을 쉽게 이해하�
 - **음성 인식 및 TTS**: 자연스러운 음성 대화 지원
 - **실시간 스트리밍**: WebSocket 기반 실시간 대화
 - **다양한 플랫폼 지원**: iOS, Android, Web 크로스 플랫폼 지원
-- **세션 기반 대화 관리**: 사용자별 대화 기록 관리
 
 ## Dev Environment
 
@@ -63,7 +62,6 @@ Teacher Bo는 보드게임 플레이어들이 게임 규칙을 쉽게 이해하�
 
 - **Framework**: NestJS
 - **Database**: PostgreSQL (Prisma ORM)
-- **Cache/PubSub**: Redis
 - **API**: GraphQL (Apollo Server), REST, WebSocket
 - **Language**: TypeScript
 
@@ -93,9 +91,7 @@ React Native(Expo) 기반 크로스 플랫폼 모바일/웹 클라이언트
 NestJS 기반 메인 백엔드 서버
 
 - GraphQL API 및 WebSocket 지원
-- 사용자 인증 및 세션 관리
 - AWS Transcribe/Polly 통합
-- Redis 기반 실시간 구독
 
 ### `/rag-server`
 
@@ -121,13 +117,6 @@ Silero VAD 모델 기반 음성 활동 감지(Voice Activity Detection) 서버
 - FastAPI 기반 REST API
 - 실시간 음성 감지
 - 스트리밍 오디오 지원
-
-### `/langchain`
-
-LangChain 기반 RAG 시스템 실험 및 프로토타입
-
-- Redis Stack 벡터 DB 연동
-- Python 3.13 + pipenv 환경
 
 ### `/infra`
 
@@ -156,12 +145,6 @@ docker --version
 ### 환경 변수 설정
 
 각 서비스 폴더에 `.env` 파일을 생성해야 합니다. `.env.example` 파일을 참고하세요.
-
-### Redis Stack 실행
-
-```bash
-docker compose up -d
-```
 
 ### Client 실행
 

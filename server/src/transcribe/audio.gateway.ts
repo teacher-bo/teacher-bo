@@ -29,7 +29,6 @@ export class AudioGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private clientVadFlags = new Map<string, boolean>();
 
   constructor(private transcribeService: TranscribeService) {
-    // TranscribeService의 EventEmitter를 Redis PubSub으로 연결
     this.setupEventRelay();
   }
 
@@ -41,7 +40,6 @@ export class AudioGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const eventEmitter = this.transcribeService.getEventEmitter();
 
     eventEmitter.on('transcription', (data) => {
-      this.logger.log(`📡 Publishing transcription event to Redis:`, data);
       this.emitToClient(data.clientId, 'transcriptionResult', data);
 
       // 콘솔에도 로그 출력

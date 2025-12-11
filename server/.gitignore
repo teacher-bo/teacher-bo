@@ -62,9 +62,6 @@ server/logs/
 *.sqlite
 *.sqlite3
 
-# Redis
-dump.rdb
-
 # Cache
 .cache/
 .parcel-cache/
