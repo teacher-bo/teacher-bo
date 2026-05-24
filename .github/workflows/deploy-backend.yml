@@ -73,7 +73,11 @@ jobs:
           APP_AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           APP_AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          UPSTAGE_API_KEY: ${{ secrets.UPSTAGE_API_KEY }}
+          DEEPINFRA_API_KEY: ${{ secrets.DEEPINFRA_API_KEY }}
+          DEEPINFRA_BASE_URL: ${{ vars.DEEPINFRA_BASE_URL || 'https://api.deepinfra.com/v1/openai' }}
+          RAG_EMBEDDING_MODEL: ${{ vars.RAG_EMBEDDING_MODEL || 'Qwen/Qwen3-Embedding-8B' }}
+          RAG_EMBEDDING_QUERY_INSTRUCTION: ${{ vars.RAG_EMBEDDING_QUERY_INSTRUCTION || 'Given a Korean board game rule question, retrieve the rulebook passage that directly answers the question.' }}
+          RAG_EMBEDDING_BATCH_SIZE: ${{ vars.RAG_EMBEDDING_BATCH_SIZE || '64' }}
           REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
           RAG_HISTORY_TTL_SECONDS: ${{ vars.RAG_HISTORY_TTL_SECONDS || '86400' }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
@@ -88,7 +92,7 @@ jobs:
           username: ${{ secrets.SERVER_USERNAME }}
           passphrase: ${{ secrets.SERVER_PASSWORD }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: REGISTRY,TAG,DEPLOY_SERVER,DEPLOY_RAG,SERVER_REPOSITORY,RAG_REPOSITORY,SERVER_PORT,RAG_PORT,AWS_REGION,APP_AWS_ACCESS_KEY_ID,APP_AWS_SECRET_ACCESS_KEY,OPENAI_API_KEY,UPSTAGE_API_KEY,REDIS_PASSWORD,RAG_HISTORY_TTL_SECONDS,JWT_SECRET,JWT_EXPIRES_IN,CLIENT_URL,LANGCHAIN_TRACING_V2,LANGCHAIN_ENDPOINT,LANGCHAIN_API_KEY,LANGCHAIN_PROJECT
+          envs: REGISTRY,TAG,DEPLOY_SERVER,DEPLOY_RAG,SERVER_REPOSITORY,RAG_REPOSITORY,SERVER_PORT,RAG_PORT,AWS_REGION,APP_AWS_ACCESS_KEY_ID,APP_AWS_SECRET_ACCESS_KEY,OPENAI_API_KEY,DEEPINFRA_API_KEY,DEEPINFRA_BASE_URL,RAG_EMBEDDING_MODEL,RAG_EMBEDDING_QUERY_INSTRUCTION,RAG_EMBEDDING_BATCH_SIZE,REDIS_PASSWORD,RAG_HISTORY_TTL_SECONDS,JWT_SECRET,JWT_EXPIRES_IN,CLIENT_URL,LANGCHAIN_TRACING_V2,LANGCHAIN_ENDPOINT,LANGCHAIN_API_KEY,LANGCHAIN_PROJECT
           script: |
             set -eu
 
@@ -144,6 +148,10 @@ jobs:
               redis-cli -h redis -a "$REDIS_PASSWORD" ping 2>/dev/null | grep -q PONG
 
             if [ "$DEPLOY_RAG" = "true" ]; then
+              if [ -z "$DEEPINFRA_API_KEY" ]; then
+                echo "DEEPINFRA_API_KEY is required" >&2
+                exit 1
+              fi
               docker_cmd pull "$REGISTRY/$RAG_REPOSITORY:$TAG"
               docker_cmd container rm -f "$RAG_REPOSITORY" >/dev/null 2>&1 || true
               docker_cmd run -d \
@@ -152,7 +160,11 @@ jobs:
                 --network=biblabely_network \
                 -e PORT="$RAG_PORT" \
                 -e OPENAI_API_KEY="$OPENAI_API_KEY" \
-                -e UPSTAGE_API_KEY="$UPSTAGE_API_KEY" \
+                -e DEEPINFRA_API_KEY="$DEEPINFRA_API_KEY" \
+                -e DEEPINFRA_BASE_URL="$DEEPINFRA_BASE_URL" \
+                -e RAG_EMBEDDING_MODEL="$RAG_EMBEDDING_MODEL" \
+                -e RAG_EMBEDDING_QUERY_INSTRUCTION="$RAG_EMBEDDING_QUERY_INSTRUCTION" \
+                -e RAG_EMBEDDING_BATCH_SIZE="$RAG_EMBEDDING_BATCH_SIZE" \
                 -e REDIS_HOST=redis \
                 -e REDIS_PORT=6379 \
                 -e REDIS_DB=1 \

@@ -1,11 +1,16 @@
 import json
 import os
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
-from langchain_upstage import UpstageEmbeddings
 from langchain_chroma import Chroma
 from langchain.schema import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+RAG_SERVER_DIR = Path(__file__).resolve().parent.parent / "rag-server"
+sys.path.insert(0, str(RAG_SERVER_DIR))
+
+from app.core.embeddings import DeepInfraEmbeddings
 
 # 환경 변수 로드
 load_dotenv()
@@ -95,8 +100,8 @@ def main():
         return
 
     # 임베딩 모델 설정
-    print("\n🤖 임베딩 모델(Upstage Solar) 준비 중...")
-    embeddings = UpstageEmbeddings(model="solar-embedding-1-large-passage")
+    print("\n🤖 임베딩 모델(DeepInfra Qwen3) 준비 중...")
+    embeddings = DeepInfraEmbeddings()
     
     # 게임별로 벡터 DB 저장
     for game_name, docs in games.items():

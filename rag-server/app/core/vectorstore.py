@@ -1,7 +1,6 @@
-"""Vector store management."""
-
-from langchain_upstage import UpstageEmbeddings
 from langchain_chroma import Chroma
+
+from app.core.embeddings import DeepInfraEmbeddings
 
 
 def load_vectorstore(game_key: str, available_games: dict) -> tuple[Chroma, str]:
@@ -23,7 +22,7 @@ def load_vectorstore(game_key: str, available_games: dict) -> tuple[Chroma, str]
     
     game_config = available_games[game_key]
     
-    embeddings = UpstageEmbeddings(model="solar-embedding-1-large-passage")
+    embeddings = DeepInfraEmbeddings()
     vectorstore = Chroma(
         persist_directory=game_config["db_path"],
         embedding_function=embeddings,

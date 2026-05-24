@@ -29,6 +29,8 @@ fastapi dev app/main.py         # 서버 시작
 
   - 이때, chroma_db 생성은 `rag-vector-db-generator` 폴더에서 관리됨.
   - `rag-vector-db-generator` 폴더에 변경이 감지되면, github actions에서 자동으로 chroma_db 폴더를 만들고 RAG Docker image에 포함함.
+  - 문서 임베딩과 런타임 질문 임베딩은 DeepInfra `Qwen/Qwen3-Embedding-8B`로 통일함.
+  - 질문 임베딩에는 `RAG_EMBEDDING_QUERY_INSTRUCTION` 기반 `Instruct: ...\nQuery: ...` prefix를 적용함.
   - 로컬에서 개발 시 `rag-vector-db-generator` 폴더에서 `embed_and_store.py` 돌려서 chroma_db 만들어서 수동으로 `rag-server` 폴더에 넣어줘야함.
 
 - **위 2개를 조합해서 LLM 모델에 넘겨주고, 답변을 받아옴**
@@ -63,6 +65,6 @@ rag-server/
 
 - **Framework**: FastAPI
 - **LLM**: OpenAI GPT-4o-mini
-- **Embeddings**: Upstage Solar Embeddings
+- **Embeddings**: DeepInfra Qwen3 Embedding 8B
 - **Vector DB**: ChromaDB
 - **RAG Framework**: LangChain

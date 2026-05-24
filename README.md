@@ -63,7 +63,7 @@ Teacher Bo는 보드게임 플레이어들이 게임 규칙을 쉽게 이해하�
 ### AI/ML
 
 - **LLM**: OpenAI GPT-4o-mini
-- **Embeddings**: Upstage Solar Embeddings
+- **Embeddings**: DeepInfra Qwen3 Embedding 8B
 - **Vector DB**: ChromaDB
 - **Framework**: LangChain, FastAPI
 - **VAD**: Silero VAD
@@ -102,7 +102,7 @@ FastAPI 기반 RAG(Retrieval-Augmented Generation) 서버
 보드게임 룰북을 벡터 데이터베이스로 변환하는 임베딩 생성기
 
 - PDF/JSON 룰북 로더
-- Upstage Solar Embeddings
+- DeepInfra Qwen3 Embedding 8B
 - ChromaDB 저장 및 검색 테스트
 
 ### `/silero-vad`

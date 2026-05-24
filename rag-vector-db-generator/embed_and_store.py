@@ -1,10 +1,15 @@
 from dotenv import load_dotenv
-from langchain_upstage import UpstageEmbeddings
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 import os
 from pathlib import Path
+import sys
+
+RAG_SERVER_DIR = Path(__file__).resolve().parent.parent / "rag-server"
+sys.path.insert(0, str(RAG_SERVER_DIR))
+
+from app.core.embeddings import DeepInfraEmbeddings
 
 # 환경 변수 로드
 load_dotenv()
@@ -75,12 +80,9 @@ def process_single_rulebook(game_name: str, file_path: Path):
         print(f"내용: {split.page_content[:]}...")
         print("-" * 40)
     
-    # 3. 임베딩 모델 설정 (Upstage)
     print("\n4️⃣ 임베딩 모델 설정 중...")
-    embeddings = UpstageEmbeddings(
-        model="solar-embedding-1-large-passage"
-    )
-    print("✅ Upstage Solar Embeddings 준비 완료")
+    embeddings = DeepInfraEmbeddings()
+    print("✅ DeepInfra Qwen3 Embeddings 준비 완료")
     
     # 4. ChromaDB에 저장
     print("\n5️⃣ ChromaDB에 저장 중...")

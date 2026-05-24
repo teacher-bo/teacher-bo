@@ -62,7 +62,7 @@ python embed_and_store.py
 이 스크립트는:
 1. `rulebooks/final/` 폴더의 모든 `.rulebook.txt` 파일 탐지
 2. 각 파일을 청크로 분할
-3. Upstage Solar Embeddings로 임베딩
+3. DeepInfra `Qwen/Qwen3-Embedding-8B`로 임베딩
 4. ChromaDB에 저장 (`chroma_db/{게임명}/`)
 
 ## 🔧 환경 변수 설정
@@ -70,9 +70,16 @@ python embed_and_store.py
 `.env` 파일에 다음 키 설정 필요:
 
 ```env
-UPSTAGE_API_KEY=your_upstage_api_key
+DEEPINFRA_API_KEY=your_deepinfra_api_key
+DEEPINFRA_BASE_URL=https://api.deepinfra.com/v1/openai
+RAG_EMBEDDING_MODEL=Qwen/Qwen3-Embedding-8B
+RAG_EMBEDDING_QUERY_INSTRUCTION=Given a Korean board game rule question, retrieve the rulebook passage that directly answers the question.
+RAG_EMBEDDING_BATCH_SIZE=64
 OPENAI_API_KEY=your_openai_api_key
+UPSTAGE_API_KEY=optional_upstage_ocr_key
 ```
+
+`UPSTAGE_API_KEY`는 `loaders/pdf_ocr_loader.py`를 사용하는 OCR PDF 처리에만 필요하며, ChromaDB 임베딩 생성에는 사용하지 않습니다.
 
 ## 📝 처리 흐름
 

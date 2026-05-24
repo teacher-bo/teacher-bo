@@ -77,22 +77,31 @@ else
     echo "[5/9] rag-vector-db-generator .env 파일 확인 중..."
     VECTOR_DB_DIR="$RAG_SERVER_DIR/../rag-vector-db-generator"
 
-    # Extract API keys from rag-server .env (do not echo secrets)
-    UPSTAGE_API_KEY=$(grep "^UPSTAGE_API_KEY=" "$RAG_SERVER_DIR/.env" | cut -d'=' -f2-)
+    DEEPINFRA_API_KEY=$(grep "^DEEPINFRA_API_KEY=" "$RAG_SERVER_DIR/.env" | cut -d'=' -f2-)
+    DEEPINFRA_BASE_URL=$(grep "^DEEPINFRA_BASE_URL=" "$RAG_SERVER_DIR/.env" | cut -d'=' -f2-)
+    RAG_EMBEDDING_MODEL=$(grep "^RAG_EMBEDDING_MODEL=" "$RAG_SERVER_DIR/.env" | cut -d'=' -f2-)
+    RAG_EMBEDDING_QUERY_INSTRUCTION=$(grep "^RAG_EMBEDDING_QUERY_INSTRUCTION=" "$RAG_SERVER_DIR/.env" | cut -d'=' -f2-)
+    RAG_EMBEDDING_BATCH_SIZE=$(grep "^RAG_EMBEDDING_BATCH_SIZE=" "$RAG_SERVER_DIR/.env" | cut -d'=' -f2-)
     OPENAI_API_KEY=$(grep "^OPENAI_API_KEY=" "$RAG_SERVER_DIR/.env" | cut -d'=' -f2-)
+    UPSTAGE_API_KEY=$(grep "^UPSTAGE_API_KEY=" "$RAG_SERVER_DIR/.env" | cut -d'=' -f2-)
 
     if [ ! -f "$VECTOR_DB_DIR/.env" ]; then
         echo -e "${YELLOW}⚠ rag-vector-db-generator .env 파일이 없습니다. 생성 중...${NC}"
 
-        # UPSTAGE_API_KEY is required for OCR flow
-        if [ -z "$UPSTAGE_API_KEY" ]; then
-            echo -e "${RED}❌ rag-server .env에서 UPSTAGE_API_KEY를 찾을 수 없습니다.${NC}"
+        if [ -z "$DEEPINFRA_API_KEY" ]; then
+            echo -e "${RED}❌ rag-server .env에서 DEEPINFRA_API_KEY를 찾을 수 없습니다.${NC}"
             exit 1
         fi
 
-        # Create new .env with required/optional keys
         {
-            echo "UPSTAGE_API_KEY=$UPSTAGE_API_KEY"
+            echo "DEEPINFRA_API_KEY=$DEEPINFRA_API_KEY"
+            echo "DEEPINFRA_BASE_URL=${DEEPINFRA_BASE_URL:-https://api.deepinfra.com/v1/openai}"
+            echo "RAG_EMBEDDING_MODEL=${RAG_EMBEDDING_MODEL:-Qwen/Qwen3-Embedding-8B}"
+            echo "RAG_EMBEDDING_QUERY_INSTRUCTION=${RAG_EMBEDDING_QUERY_INSTRUCTION:-Given a Korean board game rule question, retrieve the rulebook passage that directly answers the question.}"
+            echo "RAG_EMBEDDING_BATCH_SIZE=${RAG_EMBEDDING_BATCH_SIZE:-64}"
+            if [ -n "$UPSTAGE_API_KEY" ]; then
+                echo "UPSTAGE_API_KEY=$UPSTAGE_API_KEY"
+            fi
             if [ -n "$OPENAI_API_KEY" ]; then
                 echo "OPENAI_API_KEY=$OPENAI_API_KEY"
             else
@@ -103,15 +112,39 @@ else
         echo -e "${GREEN}✓ rag-vector-db-generator .env 파일 생성 완료${NC}"
     else
         echo -e "${GREEN}✓ rag-vector-db-generator .env 파일 확인 완료${NC}"
-        # Ensure required/optional keys exist in existing .env
-        if ! grep -q "^UPSTAGE_API_KEY=" "$VECTOR_DB_DIR/.env"; then
-            if [ -n "$UPSTAGE_API_KEY" ]; then
-                echo "UPSTAGE_API_KEY=$UPSTAGE_API_KEY" >> "$VECTOR_DB_DIR/.env"
-                echo -e "${GREEN}✓ UPSTAGE_API_KEY 추가 완료${NC}"
+        if ! grep -q "^DEEPINFRA_API_KEY=" "$VECTOR_DB_DIR/.env"; then
+            if [ -n "$DEEPINFRA_API_KEY" ]; then
+                echo "DEEPINFRA_API_KEY=$DEEPINFRA_API_KEY" >> "$VECTOR_DB_DIR/.env"
+                echo -e "${GREEN}✓ DEEPINFRA_API_KEY 추가 완료${NC}"
             else
-                echo -e "${RED}❌ rag-server .env에서 UPSTAGE_API_KEY를 찾을 수 없습니다.${NC}"
+                echo -e "${RED}❌ rag-server .env에서 DEEPINFRA_API_KEY를 찾을 수 없습니다.${NC}"
                 exit 1
             fi
+        fi
+
+        if ! grep -q "^DEEPINFRA_BASE_URL=" "$VECTOR_DB_DIR/.env"; then
+            echo "DEEPINFRA_BASE_URL=${DEEPINFRA_BASE_URL:-https://api.deepinfra.com/v1/openai}" >> "$VECTOR_DB_DIR/.env"
+            echo -e "${GREEN}✓ DEEPINFRA_BASE_URL 추가 완료${NC}"
+        fi
+
+        if ! grep -q "^RAG_EMBEDDING_MODEL=" "$VECTOR_DB_DIR/.env"; then
+            echo "RAG_EMBEDDING_MODEL=${RAG_EMBEDDING_MODEL:-Qwen/Qwen3-Embedding-8B}" >> "$VECTOR_DB_DIR/.env"
+            echo -e "${GREEN}✓ RAG_EMBEDDING_MODEL 추가 완료${NC}"
+        fi
+
+        if ! grep -q "^RAG_EMBEDDING_QUERY_INSTRUCTION=" "$VECTOR_DB_DIR/.env"; then
+            echo "RAG_EMBEDDING_QUERY_INSTRUCTION=${RAG_EMBEDDING_QUERY_INSTRUCTION:-Given a Korean board game rule question, retrieve the rulebook passage that directly answers the question.}" >> "$VECTOR_DB_DIR/.env"
+            echo -e "${GREEN}✓ RAG_EMBEDDING_QUERY_INSTRUCTION 추가 완료${NC}"
+        fi
+
+        if ! grep -q "^RAG_EMBEDDING_BATCH_SIZE=" "$VECTOR_DB_DIR/.env"; then
+            echo "RAG_EMBEDDING_BATCH_SIZE=${RAG_EMBEDDING_BATCH_SIZE:-64}" >> "$VECTOR_DB_DIR/.env"
+            echo -e "${GREEN}✓ RAG_EMBEDDING_BATCH_SIZE 추가 완료${NC}"
+        fi
+
+        if ! grep -q "^UPSTAGE_API_KEY=" "$VECTOR_DB_DIR/.env" && [ -n "$UPSTAGE_API_KEY" ]; then
+            echo "UPSTAGE_API_KEY=$UPSTAGE_API_KEY" >> "$VECTOR_DB_DIR/.env"
+            echo -e "${GREEN}✓ UPSTAGE_API_KEY 추가 완료${NC}"
         fi
 
         if ! grep -q "^OPENAI_API_KEY=" "$VECTOR_DB_DIR/.env"; then

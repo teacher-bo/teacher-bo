@@ -29,7 +29,7 @@ Teacher Bo backend production deployment runs Docker containers on the shared pr
 - `SERVER_PASSWORD`
 - `SSH_PRIVATE_KEY`
 - `OPENAI_API_KEY`
-- `UPSTAGE_API_KEY`
+- `DEEPINFRA_API_KEY`
 - `REDIS_PASSWORD`
 - `JWT_SECRET`
 
@@ -38,6 +38,10 @@ Teacher Bo backend production deployment runs Docker containers on the shared pr
 - `CLIENT_URL`
 - `JWT_EXPIRES_IN`
 - `RAG_HISTORY_TTL_SECONDS`
+- `DEEPINFRA_BASE_URL`
+- `RAG_EMBEDDING_MODEL`
+- `RAG_EMBEDDING_QUERY_INSTRUCTION`
+- `RAG_EMBEDDING_BATCH_SIZE`
 - `LANGCHAIN_TRACING_V2`
 - `LANGCHAIN_ENDPOINT`
 - `LANGCHAIN_API_KEY`

@@ -30,12 +30,17 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          python -m compileall app application.py
+          python -m unittest discover -s tests
+          python -m compileall app application.py tests
 
       - name: Generate ChromaDB
         working-directory: rag-vector-db-generator
         env:
-          UPSTAGE_API_KEY: ${{ secrets.UPSTAGE_API_KEY }}
+          DEEPINFRA_API_KEY: ${{ secrets.DEEPINFRA_API_KEY }}
+          DEEPINFRA_BASE_URL: ${{ vars.DEEPINFRA_BASE_URL || 'https://api.deepinfra.com/v1/openai' }}
+          RAG_EMBEDDING_MODEL: ${{ vars.RAG_EMBEDDING_MODEL || 'Qwen/Qwen3-Embedding-8B' }}
+          RAG_EMBEDDING_QUERY_INSTRUCTION: ${{ vars.RAG_EMBEDDING_QUERY_INSTRUCTION || 'Given a Korean board game rule question, retrieve the rulebook passage that directly answers the question.' }}
+          RAG_EMBEDDING_BATCH_SIZE: ${{ vars.RAG_EMBEDDING_BATCH_SIZE || '64' }}
         run: |
           pip install -r requirements.txt
           python embed_and_store.py
