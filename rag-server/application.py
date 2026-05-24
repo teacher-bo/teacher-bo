@@ -1,6 +1,5 @@
 from app.main import app
 
-# Elastic Beanstalk는 'application' 변수를 찾습니다
 application = app
 
 if __name__ == "__main__":

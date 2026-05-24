@@ -2,7 +2,6 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { config } from 'dotenv';
 import { json } from 'body-parser';
-import helmet from 'helmet';
 
 import * as dayjs from 'dayjs';
 import 'dayjs/locale/ko';

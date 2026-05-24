@@ -1,159 +1,110 @@
-"""Chat message history management with DynamoDB.
-
-Refactors to:
-- Centralize configuration and avoid leaking table name defaults.
-- Reuse a single boto3 Session/Resource.
-- Improve delete logic using the table key schema and pagination.
-- Support optional local DynamoDB endpoint for development (DDB_ENDPOINT_URL).
-
-Notes:
-- Environment variables only read by name; no defaults for sensitive settings like table name.
-- Comments are written in English per repository guidelines.
-"""
-
+import json
 import os
-import boto3
-from langchain_core.chat_history import BaseChatMessageHistory
-from langchain_community.chat_message_histories import DynamoDBChatMessageHistory
+from typing import Iterable, Optional
+
+import redis
 from dotenv import load_dotenv
-from boto3.dynamodb.conditions import Key
-from typing import Optional, Dict, Any, List
+from langchain_core.chat_history import BaseChatMessageHistory
+from langchain_core.messages import BaseMessage, messages_from_dict, messages_to_dict
 
 load_dotenv()
 
-# Global cached session/resource
-_boto3_session: Optional[boto3.session.Session] = None
-_dynamodb_resource = None
+MAX_HISTORY = 2
+DEFAULT_HISTORY_TTL_SECONDS = 86400
+REDIS_KEY_PREFIX = "teacher-bo:rag:history"
 
-MAX_HISTORY = 1 * 2 # 총 1개의 질문,답변을 저장 (질문/답변 각각 갯수로 쳐서 2 곱해야함)
+_redis_client: Optional[redis.Redis] = None
 
-def _get_boto3_session() -> boto3.session.Session:
-    """Create or return a cached boto3 Session.
 
-    Prefer the default AWS credential/provider chain. Only pass explicit
-    credentials when they are set via env vars to avoid accidental empty values.
-    """
-    global _boto3_session
-    if _boto3_session is None:
-        aws_access_key = os.getenv('DDB_AWS_ACCESS_KEY')
-        aws_secret_key = os.getenv('DDB_AWS_SECRET_ACCESS_KEY')
-        region = os.getenv('DDB_AWS_REGION')
+def _get_history_ttl_seconds() -> int:
+    raw_ttl = os.getenv("RAG_HISTORY_TTL_SECONDS")
+    if raw_ttl is None:
+        return DEFAULT_HISTORY_TTL_SECONDS
 
-        if aws_access_key and aws_secret_key:
-            # Explicit credentials path
-            _boto3_session = boto3.Session(
-                aws_access_key_id=aws_access_key,
-                aws_secret_access_key=aws_secret_key,
-                region_name=region or 'ap-northeast-2',
-            )
+    try:
+        ttl = int(raw_ttl)
+    except ValueError as exc:
+        raise ValueError("RAG_HISTORY_TTL_SECONDS must be an integer") from exc
+
+    if ttl <= 0:
+        raise ValueError("RAG_HISTORY_TTL_SECONDS must be greater than 0")
+
+    return ttl
+
+
+def _get_redis_client() -> redis.Redis:
+    global _redis_client
+    if _redis_client is None:
+        redis_url = os.getenv("REDIS_URL")
+        if redis_url:
+            _redis_client = redis.Redis.from_url(redis_url)
         else:
-            # Use default credential chain (env, config, EC2/ECS role, SSO, etc.)
-            _boto3_session = boto3.Session(region_name=region or 'ap-northeast-2')
-    return _boto3_session
+            redis_password = os.getenv("REDIS_PASSWORD")
+            if not redis_password:
+                raise ValueError("REDIS_URL or REDIS_PASSWORD is required")
+            _redis_client = redis.Redis(
+                host=os.getenv("REDIS_HOST", "redis"),
+                port=int(os.getenv("REDIS_PORT", "6379")),
+                db=int(os.getenv("REDIS_DB", "1")),
+                password=redis_password,
+            )
+    return _redis_client
 
 
-def _get_dynamodb_resource() -> Any:
-    """Create or return a cached DynamoDB resource from the session.
+class RedisTTLChatMessageHistory(BaseChatMessageHistory):
+    def __init__(
+        self,
+        session_id: str,
+        client: redis.Redis,
+        ttl_seconds: int,
+        max_history: int = MAX_HISTORY,
+    ) -> None:
+        self.session_id = session_id
+        self.client = client
+        self.ttl_seconds = ttl_seconds
+        self.max_history = max_history
+        self.key = f"{REDIS_KEY_PREFIX}:{session_id}"
 
-    Supports optional local endpoint via DDB_ENDPOINT_URL.
-    """
-    global _dynamodb_resource
-    if _dynamodb_resource is None:
-        session = _get_boto3_session()
-        endpoint_url = os.getenv('DDB_ENDPOINT_URL')  # Optional (e.g., DynamoDB Local)
-        _dynamodb_resource = session.resource('dynamodb', endpoint_url=endpoint_url)
-    return _dynamodb_resource
+    @property
+    def messages(self) -> list[BaseMessage]:
+        raw_messages = self.client.lrange(self.key, 0, -1)
+        if not raw_messages:
+            return []
 
+        serialized_messages = [
+            json.loads(
+                item.decode("utf-8") if isinstance(item, bytes) else str(item)
+            )
+            for item in raw_messages
+        ]
+        return messages_from_dict(serialized_messages)
 
-def _require_table_name() -> str:
-    """Return the DynamoDB table name from env, or raise if missing.
+    def add_messages(self, messages: Iterable[BaseMessage]) -> None:
+        next_messages = [*self.messages, *messages][-self.max_history :]
+        serialized_messages = [
+            json.dumps(message, ensure_ascii=False)
+            for message in messages_to_dict(next_messages)
+        ]
 
-    Avoid setting a hard-coded default to prevent accidental leakage of
-    environment-specific resource names.
-    """
-    table_name = os.getenv('DDB_TABLE_FOR_RAG')
-    if not table_name:
-        raise ValueError(
-            "DDB_TABLE_FOR_RAG is required but not set. Configure it in environment variables."
-        )
-    return table_name
+        pipe = self.client.pipeline()
+        pipe.delete(self.key)
+        if serialized_messages:
+            pipe.rpush(self.key, *serialized_messages)
+            pipe.expire(self.key, self.ttl_seconds)
+        pipe.execute()
+
+    def clear(self) -> None:
+        self.client.delete(self.key)
 
 
 def get_session_history(session_id: str) -> BaseChatMessageHistory:
-    """
-    세션 ID별로 채팅 기록을 관리 (DynamoDB 기반)
-    
-    Args:
-        session_id: 세션 식별자
-        
-    Returns:
-        BaseChatMessageHistory: 해당 세션의 채팅 기록
-    """
-    table_name = _require_table_name()
-    session = _get_boto3_session()
-
-    return DynamoDBChatMessageHistory(
-        table_name=table_name,
+    return RedisTTLChatMessageHistory(
         session_id=session_id,
-        boto3_session=session,
-        history_size=MAX_HISTORY,
+        client=_get_redis_client(),
+        ttl_seconds=_get_history_ttl_seconds(),
     )
 
 
 def delete_session_history(session_id: str) -> bool:
-    """
-    특정 세션의 대화 기록을 DynamoDB에서 삭제
-    
-    Args:
-        session_id: 세션 식별자
-        
-    Returns:
-        bool: 삭제 성공 여부
-    """
-    try:
-        table_name = _require_table_name()
-        table = _get_dynamodb_resource().Table(table_name)
-
-        # Query all items for this session_id with pagination
-        last_evaluated_key: Optional[Dict[str, Any]] = None
-        items: List[Dict[str, Any]] = []
-        while True:
-            kwargs: Dict[str, Any] = {
-                'KeyConditionExpression': Key('SessionId').eq(session_id)
-            }
-            if last_evaluated_key:
-                kwargs['ExclusiveStartKey'] = last_evaluated_key
-
-            response = table.query(**kwargs)
-            items.extend(response.get('Items', []))
-            last_evaluated_key = response.get('LastEvaluatedKey')
-            if not last_evaluated_key:
-                break
-
-        if not items:
-            return True
-
-        # Build delete keys using the table's key schema
-        key_schema = table.key_schema  # e.g., [{'AttributeName': 'SessionId', 'KeyType': 'HASH'}, ...]
-
-        def build_key(it: Dict[str, Any]) -> Dict[str, Any]:
-            key: Dict[str, Any] = {}
-            for ks in key_schema:
-                attr = ks['AttributeName']
-                if attr in it:
-                    key[attr] = it[attr]
-            # Fallback: at least provide partition key when schema unavailable
-            if not key and 'SessionId' in it:
-                key['SessionId'] = it['SessionId']
-            return key
-
-        with table.batch_writer() as batch:
-            for item in items:
-                key = build_key(item)
-                if key:
-                    batch.delete_item(Key=key)
-
-        return True
-    except Exception as e:
-        print(f"Error deleting session {session_id}: {e}")
-        return False
+    get_session_history(session_id).clear()
+    return True

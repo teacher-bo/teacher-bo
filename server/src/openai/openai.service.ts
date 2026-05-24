@@ -2,9 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import { AxiosResponse } from 'axios';
-import { ChatInput, FileSearchInput } from './dto/openai.input';
-import { ChatResponse, FileSearchResponse } from './dto/openai.response';
+import { ChatInput } from './dto/openai.input';
+import { ChatResponse } from './dto/openai.response';
 
 @Injectable()
 export class OpenAIService {

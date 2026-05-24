@@ -1,0 +1,74 @@
+name: Build Teacher Bo Server
+
+on:
+  workflow_call:
+    outputs:
+      registry:
+        description: ECR registry URL
+        value: ${{ jobs.build_server.outputs.registry }}
+
+jobs:
+  build_server:
+    runs-on: ubuntu-latest
+    outputs:
+      registry: ${{ steps.login-ecr.outputs.registry }}
+    steps:
+      - name: Checkout server
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: |
+            server
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: yarn
+          cache-dependency-path: server/yarn.lock
+
+      - name: Install dependencies
+        working-directory: server
+        run: yarn install --frozen-lockfile
+
+      - name: Check server
+        working-directory: server
+        run: |
+          yarn type-check
+          yarn lint:check
+          yarn test --runInBand
+          yarn build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-region: ap-northeast-2
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Ensure ECR repository
+        env:
+          REPOSITORY: teacher-bo-server
+        run: |
+          aws ecr describe-repositories --repository-names "$REPOSITORY" >/dev/null 2>&1 \
+            || aws ecr create-repository --repository-name "$REPOSITORY" >/dev/null
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push server image
+        uses: docker/build-push-action@v6
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: teacher-bo-server
+          IMAGE_TAG: ${{ github.sha }}
+        with:
+          context: ./server
+          file: ./server/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.REPOSITORY }}:${{ env.IMAGE_TAG }}
+          cache-from: type=gha,scope=teacher-bo-server
+          cache-to: type=gha,mode=max,scope=teacher-bo-server

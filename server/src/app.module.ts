@@ -5,7 +5,6 @@ import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 
-import { PrismaModule } from './prisma/prisma.module';
 import { TranscribeModule } from './transcribe/transcribe.module';
 import { OpenAIModule } from './openai/openai.module';
 import { PollyModule } from './polly/polly.module';

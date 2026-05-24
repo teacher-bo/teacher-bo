@@ -1,0 +1,78 @@
+name: Build Teacher Bo RAG
+
+on:
+  workflow_call:
+    outputs:
+      registry:
+        description: ECR registry URL
+        value: ${{ jobs.build_rag.outputs.registry }}
+
+jobs:
+  build_rag:
+    runs-on: ubuntu-latest
+    outputs:
+      registry: ${{ steps.login-ecr.outputs.registry }}
+    steps:
+      - name: Checkout RAG sources
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: |
+            rag-server
+            rag-vector-db-generator
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check RAG server
+        working-directory: rag-server
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python -m compileall app application.py
+
+      - name: Generate ChromaDB
+        working-directory: rag-vector-db-generator
+        env:
+          UPSTAGE_API_KEY: ${{ secrets.UPSTAGE_API_KEY }}
+        run: |
+          pip install -r requirements.txt
+          python embed_and_store.py
+          rm -rf ../rag-server/chroma_db
+          cp -R chroma_db ../rag-server/chroma_db
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-region: ap-northeast-2
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Ensure ECR repository
+        env:
+          REPOSITORY: teacher-bo-rag
+        run: |
+          aws ecr describe-repositories --repository-names "$REPOSITORY" >/dev/null 2>&1 \
+            || aws ecr create-repository --repository-name "$REPOSITORY" >/dev/null
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push RAG image
+        uses: docker/build-push-action@v6
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: teacher-bo-rag
+          IMAGE_TAG: ${{ github.sha }}
+        with:
+          context: ./rag-server
+          file: ./rag-server/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.REPOSITORY }}:${{ env.IMAGE_TAG }}
+          cache-from: type=gha,scope=teacher-bo-rag
+          cache-to: type=gha,mode=max,scope=teacher-bo-rag

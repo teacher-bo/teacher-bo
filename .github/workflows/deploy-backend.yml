@@ -1,0 +1,249 @@
+name: Deploy Teacher Bo Backend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "server/**"
+      - "rag-server/**"
+      - "rag-vector-db-generator/**"
+      - ".github/workflows/build-server.yml"
+      - ".github/workflows/build-rag.yml"
+      - ".github/workflows/deploy-backend.yml"
+  workflow_dispatch:
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      server: ${{ steps.filter.outputs.server }}
+      rag: ${{ steps.filter.outputs.rag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Detect changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            server:
+              - 'server/**'
+              - '.github/workflows/build-server.yml'
+              - '.github/workflows/deploy-backend.yml'
+            rag:
+              - 'rag-server/**'
+              - 'rag-vector-db-generator/**'
+              - '.github/workflows/build-rag.yml'
+              - '.github/workflows/deploy-backend.yml'
+
+  build_server:
+    needs: changes
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.server == 'true' }}
+    uses: ./.github/workflows/build-server.yml
+    secrets: inherit
+
+  build_rag:
+    needs: changes
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.rag == 'true' }}
+    uses: ./.github/workflows/build-rag.yml
+    secrets: inherit
+
+  deploy:
+    needs:
+      - changes
+      - build_server
+      - build_rag
+    if: ${{ always() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.server == 'true' || needs.changes.outputs.rag == 'true') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy backend containers
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          REGISTRY: ${{ needs.build_server.outputs.registry || needs.build_rag.outputs.registry || '' }}
+          TAG: ${{ github.sha }}
+          DEPLOY_SERVER: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.server == 'true' }}
+          DEPLOY_RAG: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.rag == 'true' }}
+          SERVER_REPOSITORY: teacher-bo-server
+          RAG_REPOSITORY: teacher-bo-rag
+          SERVER_PORT: 8095
+          RAG_PORT: 8096
+          AWS_REGION: ap-northeast-2
+          APP_AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          APP_AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          UPSTAGE_API_KEY: ${{ secrets.UPSTAGE_API_KEY }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          RAG_HISTORY_TTL_SECONDS: ${{ vars.RAG_HISTORY_TTL_SECONDS || '86400' }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_EXPIRES_IN: ${{ vars.JWT_EXPIRES_IN || '7d' }}
+          CLIENT_URL: ${{ vars.CLIENT_URL }}
+          LANGCHAIN_TRACING_V2: ${{ vars.LANGCHAIN_TRACING_V2 }}
+          LANGCHAIN_ENDPOINT: ${{ vars.LANGCHAIN_ENDPOINT }}
+          LANGCHAIN_API_KEY: ${{ secrets.LANGCHAIN_API_KEY }}
+          LANGCHAIN_PROJECT: ${{ vars.LANGCHAIN_PROJECT }}
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          passphrase: ${{ secrets.SERVER_PASSWORD }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: REGISTRY,TAG,DEPLOY_SERVER,DEPLOY_RAG,SERVER_REPOSITORY,RAG_REPOSITORY,SERVER_PORT,RAG_PORT,AWS_REGION,APP_AWS_ACCESS_KEY_ID,APP_AWS_SECRET_ACCESS_KEY,OPENAI_API_KEY,UPSTAGE_API_KEY,REDIS_PASSWORD,RAG_HISTORY_TTL_SECONDS,JWT_SECRET,JWT_EXPIRES_IN,CLIENT_URL,LANGCHAIN_TRACING_V2,LANGCHAIN_ENDPOINT,LANGCHAIN_API_KEY,LANGCHAIN_PROJECT
+          script: |
+            set -eu
+
+            if [ -z "$REGISTRY" ]; then
+              echo "registry is required" >&2
+              exit 1
+            fi
+
+            if [ -z "$REDIS_PASSWORD" ]; then
+              echo "REDIS_PASSWORD is required" >&2
+              exit 1
+            fi
+
+            docker_cmd() {
+              if docker info >/dev/null 2>&1; then
+                docker "$@"
+              else
+                sudo docker "$@"
+              fi
+            }
+
+            aws ecr get-login-password --region "$AWS_REGION" \
+              | docker_cmd login --username AWS --password-stdin "$REGISTRY"
+
+            docker_cmd network inspect biblabely_network >/dev/null 2>&1 \
+              || docker_cmd network create biblabely_network >/dev/null
+
+            docker_cmd network inspect redis_network >/dev/null 2>&1 \
+              || docker_cmd network create redis_network >/dev/null
+
+            mkdir -p /opt/redis/data 2>/dev/null || sudo mkdir -p /opt/redis/data
+
+            if docker_cmd container inspect redis >/dev/null 2>&1; then
+              if [ "$(docker_cmd inspect -f '{{.State.Running}}' redis)" != "true" ]; then
+                docker_cmd start redis >/dev/null
+              fi
+              docker_cmd network connect redis_network redis >/dev/null 2>&1 || true
+            else
+              docker_cmd run -d \
+                --name redis \
+                --restart=always \
+                --network=redis_network \
+                -v /opt/redis/data:/data \
+                redis:latest \
+                redis-server \
+                --appendonly yes \
+                --maxmemory 256mb \
+                --maxmemory-policy allkeys-lru \
+                --requirepass "$REDIS_PASSWORD" >/dev/null
+            fi
+
+            docker_cmd run --rm --network redis_network redis:latest \
+              redis-cli -h redis -a "$REDIS_PASSWORD" ping 2>/dev/null | grep -q PONG
+
+            if [ "$DEPLOY_RAG" = "true" ]; then
+              docker_cmd pull "$REGISTRY/$RAG_REPOSITORY:$TAG"
+              docker_cmd container rm -f "$RAG_REPOSITORY" >/dev/null 2>&1 || true
+              docker_cmd run -d \
+                --name "$RAG_REPOSITORY" \
+                --restart=always \
+                --network=biblabely_network \
+                -e PORT="$RAG_PORT" \
+                -e OPENAI_API_KEY="$OPENAI_API_KEY" \
+                -e UPSTAGE_API_KEY="$UPSTAGE_API_KEY" \
+                -e REDIS_HOST=redis \
+                -e REDIS_PORT=6379 \
+                -e REDIS_DB=1 \
+                -e REDIS_PASSWORD="$REDIS_PASSWORD" \
+                -e RAG_HISTORY_TTL_SECONDS="$RAG_HISTORY_TTL_SECONDS" \
+                -e LANGCHAIN_TRACING_V2="$LANGCHAIN_TRACING_V2" \
+                -e LANGCHAIN_ENDPOINT="$LANGCHAIN_ENDPOINT" \
+                -e LANGCHAIN_API_KEY="$LANGCHAIN_API_KEY" \
+                -e LANGCHAIN_PROJECT="$LANGCHAIN_PROJECT" \
+                "$REGISTRY/$RAG_REPOSITORY:$TAG"
+              docker_cmd network connect redis_network "$RAG_REPOSITORY" >/dev/null 2>&1 || true
+            fi
+
+            for attempt in $(seq 1 12); do
+              if docker_cmd run --rm --network biblabely_network curlimages/curl:8.10.1 \
+                -fsS "http://$RAG_REPOSITORY:$RAG_PORT/api/v1/health" >/dev/null; then
+                break
+              fi
+              if [ "$attempt" = "12" ]; then
+                echo "RAG health check failed" >&2
+                exit 1
+              fi
+              sleep 5
+            done
+
+            smoke_session_id="deploy-smoke-$TAG"
+            docker_cmd run --rm --network biblabely_network curlimages/curl:8.10.1 \
+              -fsS \
+              -X POST "http://$RAG_REPOSITORY:$RAG_PORT/api/v1/chat" \
+              -H "Content-Type: application/json" \
+              --data "{\"question\":\"루미큐브 시작 타일 수는 몇 개야?\",\"game_key\":\"rummikub\",\"session_id\":\"$smoke_session_id\"}" >/dev/null
+
+            history_ttl="$(docker_cmd run --rm --network redis_network redis:latest \
+              redis-cli -h redis -a "$REDIS_PASSWORD" -n 1 ttl "teacher-bo:rag:history:$smoke_session_id" 2>/dev/null \
+              | tail -n 1)"
+            if ! printf "%s" "$history_ttl" | grep -Eq "^-?[0-9]+$"; then
+              echo "Redis history TTL check returned non-numeric value: $history_ttl" >&2
+              exit 1
+            fi
+            if [ "$history_ttl" -le 0 ]; then
+              echo "Redis history TTL check failed for $smoke_session_id" >&2
+              exit 1
+            fi
+
+            if [ "$DEPLOY_SERVER" = "true" ]; then
+              for attempt in $(seq 1 6); do
+                if docker_cmd run --rm --network biblabely_network curlimages/curl:8.10.1 \
+                  -fsS "http://biblabely-vad:8094/health" >/dev/null; then
+                  break
+                fi
+                if [ "$attempt" = "6" ]; then
+                  echo "VAD health check failed" >&2
+                  exit 1
+                fi
+                sleep 5
+              done
+              docker_cmd pull "$REGISTRY/$SERVER_REPOSITORY:$TAG"
+              docker_cmd container rm -f "$SERVER_REPOSITORY" >/dev/null 2>&1 || true
+              docker_cmd run -d \
+                --name "$SERVER_REPOSITORY" \
+                --restart=always \
+                --network=biblabely_network \
+                -p "$SERVER_PORT:$SERVER_PORT" \
+                -e NODE_ENV=production \
+                -e PORT="$SERVER_PORT" \
+                -e AWS_REGION="$AWS_REGION" \
+                -e AWS_ACCESS_KEY_ID="$APP_AWS_ACCESS_KEY_ID" \
+                -e AWS_SECRET_ACCESS_KEY="$APP_AWS_SECRET_ACCESS_KEY" \
+                -e RAG_SERVER_URL="http://$RAG_REPOSITORY:$RAG_PORT" \
+                -e VAD_SERVER_URL="http://biblabely-vad:8094" \
+                -e JWT_SECRET="$JWT_SECRET" \
+                -e JWT_EXPIRES_IN="$JWT_EXPIRES_IN" \
+                -e CLIENT_URL="$CLIENT_URL" \
+                "$REGISTRY/$SERVER_REPOSITORY:$TAG"
+              for attempt in $(seq 1 12); do
+                if curl -fsS "http://127.0.0.1:$SERVER_PORT/health" >/dev/null; then
+                  break
+                fi
+                if [ "$attempt" = "12" ]; then
+                  echo "server health check failed" >&2
+                  exit 1
+                fi
+                sleep 5
+              done
+            fi
+
+            for repository in "$SERVER_REPOSITORY" "$RAG_REPOSITORY"; do
+              old_images=$(docker_cmd images "$REGISTRY/$repository" --format '{{.Repository}}:{{.Tag}} {{.ID}}' \
+                | awk -v current="$REGISTRY/$repository:$TAG" '$1 != current {print $2}' \
+                | sort -u)
+              for image_id in $old_images; do
+                docker_cmd rmi -f "$image_id" >/dev/null 2>&1 || true
+              done
+            done

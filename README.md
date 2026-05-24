@@ -95,7 +95,7 @@ FastAPI 기반 RAG(Retrieval-Augmented Generation) 서버
 - 보드게임 규칙 질의응답 API
 - ChromaDB 벡터 검색
 - LangChain 기반 대화 체인
-- DynamoDB 세션 관리
+- Redis TTL 세션 관리
 
 ### `/rag-vector-db-generator`
 

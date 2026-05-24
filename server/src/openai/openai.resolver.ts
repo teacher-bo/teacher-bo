@@ -1,8 +1,8 @@
 import { Resolver, Mutation, Query, Args } from '@nestjs/graphql';
 import { Logger } from '@nestjs/common';
 import { OpenAIService } from './openai.service';
-import { ChatInput, FileSearchInput } from './dto/openai.input';
-import { ChatResponse, FileSearchResponse } from './dto/openai.response';
+import { ChatInput } from './dto/openai.input';
+import { ChatResponse } from './dto/openai.response';
 import { ChatSession, ChatMessage } from './entities/chat.entity';
 
 @Resolver()
