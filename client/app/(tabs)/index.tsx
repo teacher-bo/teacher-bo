@@ -9,7 +9,6 @@ import {
   ScrollView,
   Animated,
   Pressable,
-  Linking,
   Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -59,9 +58,7 @@ export default function BreathePage() {
 
   const generateChatSessionId = () =>
     `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  const [chatSessionId, setChatSessionId] = useState<string>(
-    generateChatSessionId()
-  );
+  const [chatSessionId] = useState<string>(generateChatSessionId());
 
   // Game selection state
   const [selectedGameKey, setSelectedGameKey] = useState<string | null>(null);
@@ -537,7 +534,7 @@ export default function BreathePage() {
   // Show conversation state indicator
   const getStateContent = () => {
     if (conversationState === "IDLE") {
-      return <Text style={styles.statusText}>"보쌤"을 불러보세요</Text>;
+      return <Text style={styles.statusText}>보쌤을 불러보세요</Text>;
     }
     if (conversationState === "SPEAKING") {
       return <></>;

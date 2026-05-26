@@ -136,13 +136,11 @@ export const Breathe = ({
           // Calculate average frequency intensity
           let sum = 0;
           let maxFreq = 0;
-          let maxIndex = 0;
 
           for (let i = 0; i < bufferLength; i++) {
             sum += dataArray[i];
             if (dataArray[i] > maxFreq) {
               maxFreq = dataArray[i];
-              maxIndex = i;
             }
           }
 

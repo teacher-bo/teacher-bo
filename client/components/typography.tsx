@@ -1,4 +1,3 @@
-import { StatusBar } from "expo-status-bar";
 import { useRef, useEffect, useMemo } from "react";
 import { StyleSheet, View, Animated } from "react-native";
 
@@ -31,7 +30,7 @@ export const Typography = ({
   // Split by newlines first, then by spaces, keeping track of line breaks
   const segments = useMemo(() => {
     const lines = text.split("\\n");
-    const result: Array<{ word: string; isLineBreak: boolean }> = [];
+    const result: { word: string; isLineBreak: boolean }[] = [];
 
     lines.forEach((line, lineIndex) => {
       const words = line.split(" ");

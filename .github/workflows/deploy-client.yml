@@ -11,8 +11,10 @@ on:
 
 env:
   AWS_REGION: ap-northeast-2
-  S3_BUCKET: teacher-bo-client
-  CLOUDFRONT_DISTRIBUTION_ID: E2HHRGQCO89EBY
+  S3_BUCKET: teacher-bo-production
+  CLOUDFRONT_DISTRIBUTION_ID: E2QWFNXPUVRKJE
+  CLIENT_PUBLIC_URL: ${{ vars.CLIENT_PUBLIC_URL || 'https://teacher-bo.leed.at' }}
+  CLIENT_PUBLIC_API_URL: ${{ vars.CLIENT_PUBLIC_API_URL || 'https://b92c_b9ejghdi28.leed.at' }}
 
 jobs:
   deploy-client:
@@ -30,8 +32,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v5
         with:
-          aws-access-key-id: ${{ secrets.RAG_AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.RAG_AWS_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Install dependencies
@@ -42,9 +44,18 @@ jobs:
           echo "✅ Dependencies installed"
 
       - name: Create .env file
+        env:
+          CLIENT_ENV: ${{ secrets.CLIENT_ENV }}
         run: |
           cd client
-          echo "${{ secrets.CLIENT_ENV }}" > .env
+          : > .env
+          if [ -n "$CLIENT_ENV" ]; then
+            printf "%s\n" "$CLIENT_ENV" >> .env
+          fi
+          {
+            echo "EXPO_PUBLIC_URL=${{ env.CLIENT_PUBLIC_URL }}"
+            echo "EXPO_PUBLIC_API_URL=${{ env.CLIENT_PUBLIC_API_URL }}"
+          } >> .env
           echo "✅ .env file created"
 
       - name: Export web build

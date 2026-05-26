@@ -19,6 +19,16 @@ Teacher Bo backend production deployment runs Docker containers on the shared pr
 - `.github/workflows/build-server.yml`: checks, builds, and pushes `teacher-bo-server`.
 - `.github/workflows/build-rag.yml`: builds ChromaDB, checks RAG server, and pushes `teacher-bo-rag`.
 - `.github/workflows/deploy-backend.yml`: SSH deploys containers to the production server.
+- `.github/workflows/deploy-client.yml`: exports Expo web, uploads to `s3://teacher-bo-production/client-build/`, and invalidates CloudFront distribution `E2QWFNXPUVRKJE`.
+
+## Client Hosting
+
+- S3 bucket: `teacher-bo-production`
+- CloudFront distribution: `E2QWFNXPUVRKJE`
+- CloudFront domain: `dhtb31jlmkwpp.cloudfront.net`
+- Desired client domain: `teacher-bo.leed.at`
+- API URL: `https://b92c_b9ejghdi28.leed.at`
+- `teacher-bo.leed.at` is not attached yet because the current DNS CNAME points to another CloudFront distribution outside the default AWS account.
 
 ## Required Secrets
 
@@ -32,10 +42,15 @@ Teacher Bo backend production deployment runs Docker containers on the shared pr
 - `DEEPINFRA_API_KEY`
 - `REDIS_PASSWORD`
 - `JWT_SECRET`
+- `TRANSCRIBE_S3_BUCKET`
+- `TRANSCRIBE_VOCABULARY_FILTER_NAME`
 
 ## Optional Variables And Secrets
 
 - `CLIENT_URL`
+- `CLIENT_PUBLIC_URL`
+- `CLIENT_PUBLIC_API_URL`
+- `CLIENT_ENV`
 - `JWT_EXPIRES_IN`
 - `RAG_HISTORY_TTL_SECONDS`
 - `DEEPINFRA_BASE_URL`

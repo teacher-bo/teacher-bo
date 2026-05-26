@@ -51,13 +51,11 @@ export default function HomeScreen() {
     onVadEnded,
   } = useStreamingAudioService();
 
-  const { chatWithAI, loading: aiLoading, error: aiError } = useOpenAI();
+  const { chatWithAI, error: aiError } = useOpenAI();
 
   const {
     speakText,
     stopSpeaking,
-    isPlaying: isSpeaking,
-    isLoading: ttsLoading,
     error: ttsError,
   } = usePollyTTS();
 
@@ -76,7 +74,6 @@ export default function HomeScreen() {
    * Wake word 감지 및 처리 로직
    */
   const {
-    isListening: isWakeWordListening,
     startListening: startWakeWordListening,
     stopListening: stopWakeWordListening,
     error: wakeWordError,
@@ -403,10 +400,10 @@ export default function HomeScreen() {
               )}
             </View>
             <ThemedText style={styles.emptyText}>
-              "보쌤"을 불러보세요!
+              보쌤을 불러보세요!
             </ThemedText>
             <ThemedText style={styles.emptySubText}>
-              {`보드게임 규칙, 전략, 추천 등 무엇이든 물어보세요!\n음성으로 "보쌤"을 불러서 시작할 수도 있어요!`}
+              {`보드게임 규칙, 전략, 추천 등 무엇이든 물어보세요!\n음성으로 보쌤을 불러서 시작할 수도 있어요!`}
             </ThemedText>
           </View>
         ) : (
@@ -494,10 +491,11 @@ export default function HomeScreen() {
               </TouchableOpacity>
               <Button
                 onPress={resetContext}
-                children="다른 게임 질문하기"
                 variant="secondary"
                 size="sm"
-              />
+              >
+                다른 게임 질문하기
+              </Button>
             </View>
           </>
         )}
