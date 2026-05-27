@@ -83,7 +83,7 @@ jobs:
           RAG_HISTORY_TTL_SECONDS: ${{ vars.RAG_HISTORY_TTL_SECONDS || '86400' }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           JWT_EXPIRES_IN: ${{ vars.JWT_EXPIRES_IN || '7d' }}
-          CLIENT_URL: ${{ vars.CLIENT_URL }}
+          CLIENT_URL: ${{ vars.CLIENT_URL || secrets.CLIENT_URL }}
           LANGCHAIN_TRACING_V2: ${{ vars.LANGCHAIN_TRACING_V2 }}
           LANGCHAIN_ENDPOINT: ${{ vars.LANGCHAIN_ENDPOINT }}
           LANGCHAIN_API_KEY: ${{ secrets.LANGCHAIN_API_KEY }}
@@ -237,6 +237,10 @@ jobs:
               done
               docker_cmd pull "$REGISTRY/$SERVER_REPOSITORY:$TAG"
               docker_cmd container rm -f "$SERVER_REPOSITORY" >/dev/null 2>&1 || true
+              server_port_containers="$(docker_cmd ps -aq --filter "publish=$SERVER_PORT" 2>/dev/null || true)"
+              for container_id in $server_port_containers; do
+                docker_cmd container rm -f "$container_id" >/dev/null 2>&1 || true
+              done
               docker_cmd run -d \
                 --name "$SERVER_REPOSITORY" \
                 --restart=always \
