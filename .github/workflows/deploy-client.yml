@@ -1,4 +1,5 @@
 name: Deploy Client to S3 and CloudFront
+run-name: Deploy Client to S3 and CloudFront (${{ github.sha }})
 
 on:
   push:
@@ -126,5 +127,5 @@ jobs:
           echo "S3 Bucket: ${{ env.S3_BUCKET }}"
           echo "CloudFront Distribution: ${{ steps.cloudfront.outputs.distribution_id }}"
           echo "Domain: https://${{ steps.domain.outputs.domain }}"
-          echo "Invalidation: ${{ steps.invalidation.outputs.invalidation_id }}"
+          echo "Invalidation: ${{ steps.cloudfront.outputs.invalidation_id }}"
           echo "========================================="

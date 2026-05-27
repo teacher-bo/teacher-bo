@@ -47,6 +47,7 @@ The Expo web client remains a static S3 plus CloudFront deployment and is not pa
 - Backend deployment is handled by `.github/workflows/deploy-backend.yml`.
 - Reusable build workflows are `.github/workflows/build-server.yml` and `.github/workflows/build-rag.yml`.
 - Client deployment is handled by `.github/workflows/deploy-client.yml`, which uses `teacher-bo-production`, distribution `E2QWFNXPUVRKJE`, and production defaults for `CLIENT_PUBLIC_URL` and `CLIENT_PUBLIC_API_URL`.
+- Deployment workflow reruns can be triggered by workflow metadata changes when direct GitHub Actions rerun permission is unavailable; workflow run names include the commit SHA for easier tracking.
 - Backend images are pushed to ECR repositories `teacher-bo-server` and `teacher-bo-rag` with the commit SHA tag.
 - Deployment uses SSH secrets `SERVER_HOST`, `SERVER_USERNAME`, `SERVER_PASSWORD`, and `SSH_PRIVATE_KEY`, matching the `NLP-Biblabely` server deploy pattern.
 - AWS/ECR and app runtime secrets use `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `OPENAI_API_KEY`, `DEEPINFRA_API_KEY`, `REDIS_PASSWORD`, and optional `JWT_SECRET`.

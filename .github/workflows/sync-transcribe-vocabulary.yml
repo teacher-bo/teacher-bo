@@ -1,4 +1,5 @@
 name: Sync Amazon Transcribe Custom Vocabulary
+run-name: Sync Amazon Transcribe Custom Vocabulary (${{ github.sha }})
 
 on:
   push:
