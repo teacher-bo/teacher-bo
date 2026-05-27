@@ -10,7 +10,14 @@ module.exports = defineConfig([
     files: ["scripts/*.js"],
     languageOptions: {
       globals: {
+        URL: "readonly",
         __dirname: "readonly",
+        clearTimeout: "readonly",
+        console: "readonly",
+        fetch: "readonly",
+        process: "readonly",
+        require: "readonly",
+        setTimeout: "readonly",
       },
     },
   },

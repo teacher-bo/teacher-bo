@@ -12,18 +12,42 @@ import { Logger } from '@nestjs/common';
 import { TranscribeService } from './transcribe.service';
 
 interface AudioChunkData {
-  audioData: string; // base64 encoded audio
+  audioData: string;
   timestamp: number;
   soundLevel: number;
 }
 
+interface TranscriptionRelayData {
+  clientId: string;
+  text: string;
+  [key: string]: unknown;
+}
+
+interface VadEndedRelayData {
+  clientId: string;
+  timestamp: number;
+  confidence: number;
+}
+
+interface StopTranscriptionData {
+  sessionId?: string;
+}
+
+const clientOrigins = (process.env.CLIENT_URL ?? '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter((origin) => origin.length > 0);
+
 @WebSocketGateway({
   transports: ['websocket'],
-  // namespace: 'audio',
+  cors: {
+    origin: clientOrigins.length > 0 ? clientOrigins : true,
+    credentials: true,
+  },
 })
 export class AudioGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
-  server: Server;
+  server!: Server;
 
   private readonly logger = new Logger(AudioGateway.name);
   private clientVadFlags = new Map<string, boolean>();
@@ -32,21 +56,20 @@ export class AudioGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.setupEventRelay();
   }
 
-  private _vadEnabled(clientId: string) {
-    return this.clientVadFlags.get(clientId);
+  private _vadEnabled(clientId: string): boolean {
+    return this.clientVadFlags.get(clientId) ?? false;
   }
 
   private setupEventRelay() {
     const eventEmitter = this.transcribeService.getEventEmitter();
 
-    eventEmitter.on('transcription', (data) => {
+    eventEmitter.on('transcription', (data: TranscriptionRelayData) => {
       this.emitToClient(data.clientId, 'transcriptionResult', data);
 
-      // 콘솔에도 로그 출력
       this.logger.log(`STT Result [${data.clientId}]: ${data.text}`);
     });
 
-    eventEmitter.on('vadEnded', (data) => {
+    eventEmitter.on('vadEnded', (data: VadEndedRelayData) => {
       this.logger.log(`🎙️ VAD ended event received:`, data);
 
       if (!this._vadEnabled(data.clientId)) {
@@ -82,7 +105,6 @@ export class AudioGateway implements OnGatewayConnection, OnGatewayDisconnect {
         `Received audio chunk at ${data.timestamp} for client: ${client.id}`,
       );
 
-      // base64 디코딩
       const audioBuffer = Buffer.from(data.audioData, 'base64');
 
       this.transcribeService.addAudioChunk(
@@ -102,17 +124,15 @@ export class AudioGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('stopTranscriptionStream')
   async stopTranscriptionStream(
-    @MessageBody() data: { sessionId: string },
+    @MessageBody() data: StopTranscriptionData,
     @ConnectedSocket() client: Socket,
   ) {
     this.logger.log(
       `Stopping recording session: ${data.sessionId} for client: ${client.id}`,
     );
 
-    // AWS Transcribe 스트림이 완전히 종료될 때까지 대기
     await this.transcribeService.stopTranscriptionStream(client.id);
 
-    // 클라이언트에게 녹음 종료 확인 전송
     client.emit('recordingStopped', {
       sessionId: data.sessionId,
       status: 'stopped',
@@ -120,8 +140,11 @@ export class AudioGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
   }
 
-  // GraphQL Subscription에서 사용할 수 있도록 외부에서 호출 가능한 메서드
-  emitToClient(clientId: string, event: string, data: any) {
+  emitToClient(
+    clientId: string,
+    event: string,
+    data: Record<string, unknown>,
+  ) {
     const socket = this.server.sockets.sockets.get(clientId);
     if (socket) {
       socket.emit(event, data);

@@ -18,6 +18,7 @@ import { ExpoAudioStreamModule } from "@siteed/expo-audio-studio";
 
 import { Text } from "@/components/ui/Text";
 import Breathe from "@/components/Breathe";
+import { ClientOnly } from "@/components/ClientOnly";
 import GameSelectionModal, { GAMES } from "@/components/GameSelectionModal";
 import MicButton from "@/components/MicButton";
 import RulebookViewer from "@/components/RulebookViewer";
@@ -53,6 +54,14 @@ const BREATHE_OFFSET_EXPANDED = -280; // Breathe offset when messages are expand
 const BREATHE_SIZE_REDUCTION = 0.7; // Scale factor for Breathe when expanded (70% of original size)
 
 export default function BreathePage() {
+  return (
+    <ClientOnly fallback={<View style={styles.container} />}>
+      <BreathePageContent />
+    </ClientOnly>
+  );
+}
+
+function BreathePageContent() {
   const wind = Dimensions.get("window");
   const width = Platform.OS === "web" ? 440 : wind.width;
 

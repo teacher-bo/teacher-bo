@@ -26,7 +26,8 @@
     "deploy:android": "eas build --platform android --profile production && eas submit --platform android",
     "export:web": "expo export --platform web",
     "deploy:web": "yarn env 'serve -s dist -l $CLIENT_PORT'",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "verify:production": "node scripts/verify-production-runtime.js"
   },
   "dependencies": {
     "@apollo/client": "^4.0.7",

@@ -29,6 +29,8 @@ Teacher Bo backend production deployment runs Docker containers on the shared pr
 - Desired client domain: `teacher-bo.leed.at`
 - API URL: `https://b92c_b9ejghdi28.leed.at`
 - `teacher-bo.leed.at` is not attached yet because the current DNS CNAME points to another CloudFront distribution outside the default AWS account.
+- Nginx vhost template: `infra/nginx/teacher-bo.conf`
+- The API vhost must proxy `/api/*`, `/health`, `/socket.io`, and `/api/socket.io` to `teacher-bo-server` on port `8095`.
 
 ## Required Secrets
 
@@ -68,3 +70,9 @@ Teacher Bo backend production deployment runs Docker containers on the shared pr
 - RAG server: `http://teacher-bo-rag:8096/api/v1/health` from `biblabely_network`
 - VAD server: `http://biblabely-vad:8094/health` from `biblabely_network`
 - Redis: authenticated `PING` from `redis_network`
+
+## Runtime Verification
+
+- Client runtime: `cd client && yarn verify:production`
+- Server CORS preflight: `OPTIONS https://b92c_b9ejghdi28.leed.at/api/graphql` from `https://teacher-bo.leed.at`
+- Socket.IO: websocket transport to `wss://b92c_b9ejghdi28.leed.at/socket.io`

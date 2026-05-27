@@ -8,10 +8,10 @@ import {
 import { getMainDefinition } from "@apollo/client/utilities";
 import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
 import { createClient } from "graphql-ws";
-import { ENV } from "../utils/env";
+import { ENV } from "@/utils/env";
 import { Platform } from "react-native";
 
-const API_URL = ENV.API_URL;
+const API_URL = ENV.API_BASE_URL;
 
 // HTTP Link
 const httpLink = createHttpLink({
