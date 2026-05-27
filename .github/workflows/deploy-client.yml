@@ -13,6 +13,7 @@ on:
 env:
   AWS_REGION: ap-northeast-2
   S3_BUCKET: teacher-bo-production
+  S3_PREFIX: client-build
   CLOUDFRONT_DISTRIBUTION_ID: E2QWFNXPUVRKJE
   CLIENT_PUBLIC_URL: ${{ vars.CLIENT_PUBLIC_URL || 'https://teacher-bo.leed.at' }}
   CLIENT_PUBLIC_API_URL: ${{ vars.CLIENT_PUBLIC_API_URL || 'https://b92c_b9ejghdi28.leed.at' }}
@@ -70,15 +71,15 @@ jobs:
 
       - name: Upload to S3
         run: |
-          echo "📤 Uploading to S3 bucket: ${{ env.S3_BUCKET }}..."
-          aws s3 sync client/dist/ s3://${{ env.S3_BUCKET }}/ \
+          echo "📤 Uploading to S3 bucket: ${{ env.S3_BUCKET }}/${{ env.S3_PREFIX }}/..."
+          aws s3 sync client/dist/ s3://${{ env.S3_BUCKET }}/${{ env.S3_PREFIX }}/ \
             --delete \
             --cache-control "public, max-age=31536000, immutable" \
             --exclude "*.html" \
             --exclude "*.json"
 
           # Upload HTML and JSON files with different cache settings
-          aws s3 sync client/dist/ s3://${{ env.S3_BUCKET }}/ \
+          aws s3 sync client/dist/ s3://${{ env.S3_BUCKET }}/${{ env.S3_PREFIX }}/ \
             --exclude "*" \
             --include "*.html" \
             --include "*.json" \
@@ -108,6 +109,43 @@ jobs:
             --id ${{ steps.cloudfront.outputs.invalidation_id }}
           echo "✅ Invalidation completed"
 
+      - name: Verify deployed client assets
+        run: |
+          node <<'NODE'
+          const baseUrl = process.env.CLIENT_PUBLIC_URL.replace(/\/$/, "");
+          const indexResponse = await fetch(`${baseUrl}/`, { cache: "no-store" });
+
+          if (!indexResponse.ok) {
+            throw new Error(`Index request failed: ${indexResponse.status} ${indexResponse.statusText}`);
+          }
+
+          const html = await indexResponse.text();
+          const refs = [...html.matchAll(/(?:src|href)="([^"]+)"/g)]
+            .map((match) => match[1])
+            .filter((href) => href.startsWith("/_expo/") || href === "/favicon.ico");
+          const assetUrls = [...new Set(refs.map((href) => new URL(href, baseUrl).toString()))];
+
+          if (!assetUrls.some((url) => url.endsWith(".js"))) {
+            throw new Error("No deployed JavaScript bundle reference found in index.html");
+          }
+
+          const failures = [];
+
+          for (const url of assetUrls) {
+            const response = await fetch(url, { method: "HEAD", cache: "no-store" });
+
+            if (!response.ok) {
+              failures.push(`${response.status} ${url}`);
+            }
+          }
+
+          if (failures.length > 0) {
+            throw new Error(`Deployed asset verification failed:\n${failures.join("\n")}`);
+          }
+
+          console.log(`✅ Verified ${assetUrls.length} deployed client assets`);
+          NODE
+
       - name: Get CloudFront domain
         id: domain
         run: |
@@ -124,7 +162,7 @@ jobs:
           echo "========================================="
           echo "🎉 Client Deployment Successful!"
           echo "========================================="
-          echo "S3 Bucket: ${{ env.S3_BUCKET }}"
+          echo "S3 Path: s3://${{ env.S3_BUCKET }}/${{ env.S3_PREFIX }}/"
           echo "CloudFront Distribution: ${{ steps.cloudfront.outputs.distribution_id }}"
           echo "Domain: https://${{ steps.domain.outputs.domain }}"
           echo "Invalidation: ${{ steps.cloudfront.outputs.invalidation_id }}"
