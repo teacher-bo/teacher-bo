@@ -1,19 +1,65 @@
 import { useCallback, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 
+export interface TranscriptionResultData {
+  clientId: string;
+  isFinal: boolean;
+  resultId: string;
+  text: string;
+  timestamp: string;
+  [key: string]: unknown;
+}
+
+export interface TranscriptionErrorData {
+  error?: string;
+  message?: string;
+  timestamp?: number | string;
+  [key: string]: unknown;
+}
+
+export interface VadEndedData {
+  timestamp: number | string;
+  confidence?: number;
+  message?: string;
+  [key: string]: unknown;
+}
+
+interface AudioChunkMessage {
+  audioData: string;
+  timestamp: number;
+  soundLevel: number;
+}
+
+interface StopTranscriptionPayload {
+  sessionId?: string;
+}
+
+interface ServerToClientEvents {
+  vadEnded: (data: VadEndedData) => void;
+  transcriptionResult: (data: TranscriptionResultData) => void;
+  transcriptionError: (error: TranscriptionErrorData) => void;
+}
+
+interface ClientToServerEvents {
+  audioChunk: (message: AudioChunkMessage) => void;
+  stopTranscriptionStream: (payload: StopTranscriptionPayload) => void;
+}
+
+export type AudioSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
+
 interface UseSocketOptions {
   vad: boolean;
   socketUrl: string;
-  onTranscriptionResult?: (data: any) => void;
-  onTranscriptionError?: (error: any) => void;
-  onVadEnded?: (data: any) => void;
-  onConnect?: (socket: Socket) => void;
-  onDisconnect?: (socket: Socket) => void;
-  onConnectError?: (error: any) => void;
+  onTranscriptionResult?: (data: TranscriptionResultData) => void;
+  onTranscriptionError?: (error: TranscriptionErrorData) => void;
+  onVadEnded?: (data: VadEndedData) => void;
+  onConnect?: (socket: AudioSocket) => void;
+  onDisconnect?: (socket: AudioSocket) => void;
+  onConnectError?: (error: Error) => void;
 }
 
 interface UseSocketReturn {
-  socket: Socket | null;
+  socket: AudioSocket | null;
   isConnected: boolean;
   sendAudioChunk: (audioData: string, soundLevel: number) => void;
   stopTranscriptionStream: (sessionId?: string) => void;
@@ -32,7 +78,7 @@ export const useSocket = ({
   onDisconnect,
   onConnectError,
 }: UseSocketOptions): UseSocketReturn => {
-  const socketRef = useRef<Socket | null>(null);
+  const socketRef = useRef<AudioSocket | null>(null);
   const isConnectedRef = useRef(false);
 
   // Socket.IO 연결 설정
@@ -64,7 +110,7 @@ export const useSocket = ({
       query: {
         vad: vad.toString(),
       },
-    });
+    }) as AudioSocket;
 
     const socket = socketRef.current;
 
@@ -80,11 +126,11 @@ export const useSocket = ({
       onVadEnded?.(data);
     });
 
-    socket.on("transcriptionResult", (data: any) => {
+    socket.on("transcriptionResult", (data) => {
       onTranscriptionResult?.(data);
     });
 
-    socket.on("transcriptionError", (error: any) => {
+    socket.on("transcriptionError", (error) => {
       console.error("❌ Transcription error:", error);
       onTranscriptionError?.(error);
     });
@@ -95,7 +141,7 @@ export const useSocket = ({
       onDisconnect?.(socket);
     });
 
-    socket.on("connect_error", (error: any) => {
+    socket.on("connect_error", (error) => {
       console.error("🔴 Socket.IO connection error:", error);
       isConnectedRef.current = false;
       onConnectError?.(error);

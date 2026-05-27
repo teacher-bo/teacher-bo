@@ -75,4 +75,4 @@ Teacher Bo backend production deployment runs Docker containers on the shared pr
 
 - Client runtime: `cd client && yarn verify:production`
 - Server CORS preflight: `OPTIONS https://b92c_b9ejghdi28.leed.at/api/graphql` from `https://teacher-bo.leed.at`
-- Socket.IO: websocket transport to `wss://b92c_b9ejghdi28.leed.at/socket.io`
+- Socket.IO: websocket transport to `wss://teacher-bo.leed.at/socket.io`

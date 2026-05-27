@@ -22,9 +22,18 @@ function getApiBaseUrl(): string {
   return process.env.EXPO_PUBLIC_API_URL || `http://localhost:${API_PORT}`;
 }
 
+function getSocketUrl(): string {
+  if (__DEV__) {
+    return getApiBaseUrl();
+  }
+
+  return process.env.EXPO_PUBLIC_SOCKET_URL || getApiUrl();
+}
+
 export const ENV = {
   API_URL: getApiUrl(),
   API_BASE_URL: getApiBaseUrl(),
+  SOCKET_URL: getSocketUrl(),
   IS_DEV: __DEV__,
   PLATFORM: Platform.OS,
   CLIENT_PORT,

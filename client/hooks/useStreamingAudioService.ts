@@ -4,8 +4,14 @@ import {
   useAudioRecorder,
   AudioDataEvent,
 } from "@siteed/expo-audio-studio";
-import { useSocket } from "./useSocket";
-import { ENV } from "../utils/env";
+import { useSocket } from "@/hooks/useSocket";
+import type { VadEndedData } from "@/hooks/useSocket";
+import { ENV } from "@/utils/env";
+import {
+  encodeFloat32PcmToBase64,
+  encodeInt16PcmToBase64,
+  type StreamAudioData,
+} from "@/utils/audioEncoding";
 
 interface UseAudioServiceReturn {
   isRecording: boolean;
@@ -17,7 +23,7 @@ interface UseAudioServiceReturn {
   sttDatas: STTData[];
   resetSttDatas: () => void;
   reconnectSocket: () => void;
-  onVadEnded?: (callback: (data: any) => void) => void;
+  onVadEnded?: (callback: (data: VadEndedData) => void) => void;
 }
 
 interface STTData {
@@ -35,7 +41,9 @@ export const useStreamingAudioService = (): UseAudioServiceReturn => {
   const [bufferSize, setBufferSize] = useState(0);
 
   const [sttDatas, setSttDatas] = useState<STTData[]>([]);
-  const vadEndedCallbackRef = useRef<((data: any) => void) | null>(null);
+  const vadEndedCallbackRef = useRef<((data: VadEndedData) => void) | null>(
+    null
+  );
 
   const onAudioDataRef = useRef<(event: AudioDataEvent) => Promise<void>>(
     async () => {}
@@ -58,7 +66,7 @@ export const useStreamingAudioService = (): UseAudioServiceReturn => {
     reconnect: reconnectSocket,
   } = useSocket({
     vad: true,
-    socketUrl: ENV.API_BASE_URL,
+    socketUrl: ENV.SOCKET_URL,
     onTranscriptionResult: (data) => {
       setSttDatas((prev) => {
         const exists = prev.find((d) => d.resultId === data.resultId);
@@ -76,7 +84,7 @@ export const useStreamingAudioService = (): UseAudioServiceReturn => {
       console.log("🎙️ VAD ended in useStreamingAudioService:", data);
       vadEndedCallbackRef.current?.(data);
     },
-    onConnect: (s) => setSocketId(s.id!),
+    onConnect: (s) => setSocketId(s.id ?? null),
   });
 
   // 오디오 청크 전송 wrapper
@@ -91,7 +99,8 @@ export const useStreamingAudioService = (): UseAudioServiceReturn => {
   const setupAudioDataHandler = useCallback(() => {
     onAudioDataRef.current = async (event: AudioDataEvent): Promise<void> => {
       try {
-        const { data, eventDataSize } = event;
+        const { eventDataSize } = event;
+        const data = event.data as StreamAudioData;
         console.debug(
           `🎤 Processing audio data: type=${typeof data}, size=${eventDataSize}`
         );
@@ -107,26 +116,12 @@ export const useStreamingAudioService = (): UseAudioServiceReturn => {
         } else if (data instanceof Float32Array) {
           console.debug("🌐 Processing Float32Array data (Web platform)");
 
-          // Float32Array를 PCM 16-bit로 변환 후 Base64 인코딩
-          const pcmData = new Int16Array(data.length);
-          for (let i = 0; i < data.length; i++) {
-            const sample = Math.max(-1, Math.min(1, data[i]));
-            pcmData[i] = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
-          }
-
-          const uint8Array = new Uint8Array(pcmData.buffer);
-          const base64String = btoa(String.fromCharCode(...uint8Array));
+          const base64String = encodeFloat32PcmToBase64(data);
           sendAudioChunk(base64String, 0);
-        } else if (
-          ArrayBuffer.isView(data) &&
-          (data as any).BYTES_PER_ELEMENT === 2
-        ) {
-          // Int16Array 처리 - 이미 PCM 16-bit 포맷이므로 직접 Base64로 변환
+        } else if (data instanceof Int16Array) {
           console.debug("Processing Int16Array data");
 
-          const int16Data = data as Int16Array;
-          const uint8Array = new Uint8Array(int16Data.buffer);
-          const base64String = btoa(String.fromCharCode(...uint8Array));
+          const base64String = encodeInt16PcmToBase64(data);
           sendAudioChunk(base64String, 0);
         }
       } catch (error) {
@@ -209,7 +204,7 @@ export const useStreamingAudioService = (): UseAudioServiceReturn => {
   }, []);
 
   // VAD ended 콜백 등록 함수
-  const onVadEnded = useCallback((callback: (data: any) => void) => {
+  const onVadEnded = useCallback((callback: (data: VadEndedData) => void) => {
     vadEndedCallbackRef.current = callback;
   }, []);
 

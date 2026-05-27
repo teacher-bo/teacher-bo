@@ -12,6 +12,13 @@ const apiUrl = normalizeUrl(
     process.env.EXPO_PUBLIC_API_URL ||
     "https://b92c_b9ejghdi28.leed.at"
 );
+const socketUrl = normalizeUrl(
+  process.env.CLIENT_PUBLIC_SOCKET_URL ||
+    process.env.EXPO_PUBLIC_SOCKET_URL ||
+    process.env.CLIENT_PUBLIC_URL ||
+    process.env.EXPO_PUBLIC_URL ||
+    "https://teacher-bo.leed.at"
+);
 
 const assert = (condition, message) => {
   if (!condition) {
@@ -38,7 +45,8 @@ const verifyClientAssets = async () => {
     .filter((href) => href.startsWith("/_expo/") || href === "/favicon.ico");
 
   const assetUrls = [...new Set(refs.map((href) => new URL(href, clientUrl)))];
-  assert(assetUrls.some((url) => url.pathname.endsWith(".js")), "missing JS asset");
+  const jsUrls = assetUrls.filter((url) => url.pathname.endsWith(".js"));
+  assert(jsUrls.length > 0, "missing JS asset");
 
   for (const url of assetUrls) {
     const assetResponse = await fetch(url, {
@@ -48,6 +56,22 @@ const verifyClientAssets = async () => {
 
     assert(assetResponse.ok, `asset failed: ${assetResponse.status} ${url}`);
   }
+
+  const runtimeBundle =
+    jsUrls.find((url) => url.pathname.includes("/index-")) ?? jsUrls[0];
+  const bundle = await readText(runtimeBundle, {
+    cache: "no-store",
+  });
+  assert(
+    bundle.response.ok,
+    `bundle failed: ${bundle.response.status} ${runtimeBundle}`
+  );
+  assert(
+    [`SOCKET_URL:"${socketUrl}"`, `"SOCKET_URL":"${socketUrl}"`].some(
+      (fragment) => bundle.body.includes(fragment)
+    ),
+    `bundle socket url mismatch: expected ${socketUrl}`
+  );
 };
 
 const verifyApi = async () => {
@@ -90,7 +114,7 @@ const verifyApi = async () => {
 
 const verifySocket = async () => {
   await new Promise((resolve, reject) => {
-    const socket = io(apiUrl, {
+    const socket = io(socketUrl, {
       transports: ["websocket"],
       forceNew: true,
       timeout: 10000,
@@ -100,7 +124,7 @@ const verifySocket = async () => {
 
     const timeout = setTimeout(() => {
       socket.disconnect();
-      reject(new Error("socket connection timed out"));
+      reject(new Error(`socket connection timed out: ${socketUrl}`));
     }, 12000);
 
     socket.on("connect", () => {

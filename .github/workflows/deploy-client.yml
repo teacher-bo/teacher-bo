@@ -17,6 +17,7 @@ env:
   CLOUDFRONT_DISTRIBUTION_ID: E2QWFNXPUVRKJE
   CLIENT_PUBLIC_URL: ${{ vars.CLIENT_PUBLIC_URL || 'https://teacher-bo.leed.at' }}
   CLIENT_PUBLIC_API_URL: ${{ vars.CLIENT_PUBLIC_API_URL || 'https://b92c_b9ejghdi28.leed.at' }}
+  CLIENT_PUBLIC_SOCKET_URL: ${{ vars.CLIENT_PUBLIC_SOCKET_URL || vars.CLIENT_PUBLIC_URL || 'https://teacher-bo.leed.at' }}
 
 jobs:
   deploy-client:
@@ -57,6 +58,7 @@ jobs:
           {
             echo "EXPO_PUBLIC_URL=${{ env.CLIENT_PUBLIC_URL }}"
             echo "EXPO_PUBLIC_API_URL=${{ env.CLIENT_PUBLIC_API_URL }}"
+            echo "EXPO_PUBLIC_SOCKET_URL=${{ env.CLIENT_PUBLIC_SOCKET_URL }}"
           } >> .env
           echo "✅ .env file created"
 
