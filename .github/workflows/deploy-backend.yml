@@ -1,5 +1,5 @@
 name: Deploy Teacher Bo Backend
-run-name: Deploy Teacher Bo Backend (${{ github.sha }})
+run-name: Deploy Teacher Bo Backend #${{ github.run_number }} (${{ github.sha }})
 
 on:
   push:
