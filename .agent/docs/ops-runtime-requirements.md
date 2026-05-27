@@ -51,6 +51,7 @@ The Expo web client remains a static S3 plus CloudFront deployment and is not pa
 - Backend images are pushed to ECR repositories `teacher-bo-server` and `teacher-bo-rag` with the commit SHA tag.
 - Deployment uses SSH secrets `SERVER_HOST`, `SERVER_USERNAME`, `SERVER_PASSWORD`, and `SSH_PRIVATE_KEY`, matching the `NLP-Biblabely` server deploy pattern.
 - AWS/ECR and app runtime secrets use `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `OPENAI_API_KEY`, `DEEPINFRA_API_KEY`, `REDIS_PASSWORD`, and optional `JWT_SECRET`.
+- Backend deployment validates `OPENAI_API_KEY`, `DEEPINFRA_API_KEY`, and `REDIS_PASSWORD` before replacing RAG containers, and health checks preserve retry behavior even when Dockerized curl returns a non-zero status.
 - All GitHub Actions AWS credentials now use the single `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` secret pair. The old `RAG_AWS_*` and `STT_AWS_*` credential names are not used.
 - GitHub Variables may override `DEEPINFRA_BASE_URL`, `RAG_EMBEDDING_MODEL`, `RAG_EMBEDDING_QUERY_INSTRUCTION`, and `RAG_EMBEDDING_BATCH_SIZE`; defaults are wired into build and deploy workflows.
 - Legacy Elastic Beanstalk workflows for main server, RAG server, VAD server, vector DB S3 upload, and Bedrock KB RAG sync were removed from the active workflow set.

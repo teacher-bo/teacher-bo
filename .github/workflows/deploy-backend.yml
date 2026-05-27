@@ -115,6 +115,14 @@ jobs:
               fi
             }
 
+            docker_cmd_check() {
+              set +e
+              docker_cmd "$@"
+              status="$?"
+              set -e
+              return "$status"
+            }
+
             aws ecr get-login-password --region "$AWS_REGION" \
               | docker_cmd login --username AWS --password-stdin "$REGISTRY"
 
@@ -149,6 +157,10 @@ jobs:
               redis-cli -h redis -a "$REDIS_PASSWORD" ping 2>/dev/null | grep -q PONG
 
             if [ "$DEPLOY_RAG" = "true" ]; then
+              if [ -z "$OPENAI_API_KEY" ]; then
+                echo "OPENAI_API_KEY is required" >&2
+                exit 1
+              fi
               if [ -z "$DEEPINFRA_API_KEY" ]; then
                 echo "DEEPINFRA_API_KEY is required" >&2
                 exit 1
@@ -180,12 +192,13 @@ jobs:
             fi
 
             for attempt in $(seq 1 12); do
-              if docker_cmd run --rm --network biblabely_network curlimages/curl:8.10.1 \
+              if docker_cmd_check run --rm --network biblabely_network curlimages/curl:8.10.1 \
                 -fsS "http://$RAG_REPOSITORY:$RAG_PORT/api/v1/health" >/dev/null; then
                 break
               fi
               if [ "$attempt" = "12" ]; then
                 echo "RAG health check failed" >&2
+                docker_cmd logs "$RAG_REPOSITORY" --tail 100 >&2 || true
                 exit 1
               fi
               sleep 5
@@ -212,7 +225,7 @@ jobs:
 
             if [ "$DEPLOY_SERVER" = "true" ]; then
               for attempt in $(seq 1 6); do
-                if docker_cmd run --rm --network biblabely_network curlimages/curl:8.10.1 \
+                if docker_cmd_check run --rm --network biblabely_network curlimages/curl:8.10.1 \
                   -fsS "http://biblabely-vad:8094/health" >/dev/null; then
                   break
                 fi
