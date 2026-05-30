@@ -1,6 +1,6 @@
 {
   "name": "@teacher-bo/server",
-  "version": "1.0.0",
+  "version": "1.0.4",
   "private": true,
   "description": "Teacher Bo",
   "packageManager": "yarn@1.22.22",
