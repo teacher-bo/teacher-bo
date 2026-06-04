@@ -24,7 +24,7 @@
     "dev:ios": "yarn env 'yarn prebuild --platform ios --clean && expo run:ios --no-build-cache'",
     "deploy:ios": "eas build --platform ios --profile production && eas submit --platform ios",
     "deploy:android": "eas build --platform android --profile production && eas submit --platform android",
-    "export:web": "expo export --platform web",
+    "export:web": "expo export --platform web && node scripts/copy-canvaskit.js",
     "deploy:web": "yarn env 'serve -s dist -l $CLIENT_PORT'",
     "lint": "expo lint",
     "verify:production": "node scripts/verify-production-runtime.js"

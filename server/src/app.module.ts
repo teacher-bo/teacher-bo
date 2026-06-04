@@ -8,6 +8,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { TranscribeModule } from './transcribe/transcribe.module';
 import { OpenAIModule } from './openai/openai.module';
 import { PollyModule } from './polly/polly.module';
+import { TestModule } from './test/test.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { PollyModule } from './polly/polly.module';
     TranscribeModule,
     OpenAIModule,
     PollyModule,
+    TestModule,
   ],
 })
 export class AppModule {}

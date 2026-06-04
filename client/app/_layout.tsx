@@ -47,6 +47,15 @@ export default function RootLayout() {
             },
           }}
         />
+        <Stack.Screen
+          name="test"
+          options={{
+            headerShown: false,
+            contentStyle: {
+              backgroundColor: "#111827",
+            },
+          }}
+        />
         <Stack.Screen name="+not-found" />
       </Stack>
     </AppProvider>

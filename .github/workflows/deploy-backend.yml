@@ -68,8 +68,15 @@ jobs:
           DEPLOY_RAG: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.rag == 'true' }}
           SERVER_REPOSITORY: teacher-bo-server
           RAG_REPOSITORY: teacher-bo-rag
+          WHISPER_CONTAINER: teacher-bo-whisper
+          WHISPER_IMAGE: ghcr.io/ggml-org/whisper.cpp:main
+          WHISPER_MODEL: ${{ vars.WHISPER_MODEL || 'base' }}
           SERVER_PORT: 8095
           RAG_PORT: 8096
+          WHISPER_PORT: 8098
+          WHISPER_THREADS: ${{ vars.WHISPER_THREADS || '2' }}
+          WHISPER_CPUS: ${{ vars.WHISPER_CPUS || '2' }}
+          WHISPER_MEMORY: ${{ vars.WHISPER_MEMORY || '768m' }}
           AWS_REGION: ap-northeast-2
           APP_AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           APP_AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -93,7 +100,7 @@ jobs:
           username: ${{ secrets.SERVER_USERNAME }}
           passphrase: ${{ secrets.SERVER_PASSWORD }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: REGISTRY,TAG,DEPLOY_SERVER,DEPLOY_RAG,SERVER_REPOSITORY,RAG_REPOSITORY,SERVER_PORT,RAG_PORT,AWS_REGION,APP_AWS_ACCESS_KEY_ID,APP_AWS_SECRET_ACCESS_KEY,OPENAI_API_KEY,DEEPINFRA_API_KEY,DEEPINFRA_BASE_URL,RAG_EMBEDDING_MODEL,RAG_EMBEDDING_QUERY_INSTRUCTION,RAG_EMBEDDING_BATCH_SIZE,REDIS_PASSWORD,RAG_HISTORY_TTL_SECONDS,JWT_SECRET,JWT_EXPIRES_IN,CLIENT_URL,LANGCHAIN_TRACING_V2,LANGCHAIN_ENDPOINT,LANGCHAIN_API_KEY,LANGCHAIN_PROJECT
+          envs: REGISTRY,TAG,DEPLOY_SERVER,DEPLOY_RAG,SERVER_REPOSITORY,RAG_REPOSITORY,WHISPER_CONTAINER,WHISPER_IMAGE,WHISPER_MODEL,SERVER_PORT,RAG_PORT,WHISPER_PORT,WHISPER_THREADS,WHISPER_CPUS,WHISPER_MEMORY,AWS_REGION,APP_AWS_ACCESS_KEY_ID,APP_AWS_SECRET_ACCESS_KEY,OPENAI_API_KEY,DEEPINFRA_API_KEY,DEEPINFRA_BASE_URL,RAG_EMBEDDING_MODEL,RAG_EMBEDDING_QUERY_INSTRUCTION,RAG_EMBEDDING_BATCH_SIZE,REDIS_PASSWORD,RAG_HISTORY_TTL_SECONDS,JWT_SECRET,JWT_EXPIRES_IN,CLIENT_URL,LANGCHAIN_TRACING_V2,LANGCHAIN_ENDPOINT,LANGCHAIN_API_KEY,LANGCHAIN_PROJECT
           script: |
             set -eu
 
@@ -132,7 +139,39 @@ jobs:
             docker_cmd network inspect redis_network >/dev/null 2>&1 \
               || docker_cmd network create redis_network >/dev/null
 
+            mkdir -p /opt/teacher-bo/whisper-models 2>/dev/null || sudo mkdir -p /opt/teacher-bo/whisper-models
             mkdir -p /opt/redis/data 2>/dev/null || sudo mkdir -p /opt/redis/data
+
+            docker_cmd pull "$WHISPER_IMAGE"
+            whisper_model_file="/opt/teacher-bo/whisper-models/ggml-$WHISPER_MODEL.bin"
+            if [ ! -s "$whisper_model_file" ]; then
+              docker_cmd run --rm \
+                -v /opt/teacher-bo/whisper-models:/models \
+                "$WHISPER_IMAGE" \
+                "./models/download-ggml-model.sh $WHISPER_MODEL /models"
+            fi
+            docker_cmd container rm -f "$WHISPER_CONTAINER" >/dev/null 2>&1 || true
+            docker_cmd run -d \
+              --name "$WHISPER_CONTAINER" \
+              --restart=always \
+              --network=biblabely_network \
+              --cpus="$WHISPER_CPUS" \
+              --memory="$WHISPER_MEMORY" \
+              -v /opt/teacher-bo/whisper-models:/models \
+              "$WHISPER_IMAGE" \
+              "whisper-server --host 0.0.0.0 --port $WHISPER_PORT -m /models/ggml-$WHISPER_MODEL.bin -t $WHISPER_THREADS -l ko --convert --no-context"
+            for attempt in $(seq 1 12); do
+              if docker_cmd_check run --rm --network biblabely_network curlimages/curl:8.10.1 \
+                -fsS "http://$WHISPER_CONTAINER:$WHISPER_PORT/health" >/dev/null; then
+                break
+              fi
+              if [ "$attempt" = "12" ]; then
+                echo "whisper.cpp health check failed" >&2
+                docker_cmd logs "$WHISPER_CONTAINER" --tail 100 >&2 || true
+                exit 1
+              fi
+              sleep 5
+            done
 
             if docker_cmd container inspect redis >/dev/null 2>&1; then
               if [ "$(docker_cmd inspect -f '{{.State.Running}}' redis)" != "true" ]; then
@@ -253,6 +292,8 @@ jobs:
                 -e AWS_SECRET_ACCESS_KEY="$APP_AWS_SECRET_ACCESS_KEY" \
                 -e RAG_SERVER_URL="http://$RAG_REPOSITORY:$RAG_PORT" \
                 -e VAD_SERVER_URL="http://biblabely-vad:8094" \
+                -e STT_SERVER_URL="http://$WHISPER_CONTAINER:$WHISPER_PORT" \
+                -e STT_MODEL="$WHISPER_MODEL" \
                 -e JWT_SECRET="$JWT_SECRET" \
                 -e JWT_EXPIRES_IN="$JWT_EXPIRES_IN" \
                 -e CLIENT_URL="$CLIENT_URL" \

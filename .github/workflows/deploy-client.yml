@@ -67,7 +67,6 @@ jobs:
           cd client
           echo "🔨 Exporting web build..."
           yarn export:web
-          cp ./dist/canvaskit.wasm ./dist/_expo/static/js/web
           echo "✅ Web build exported"
           ls -la dist/
 
@@ -115,14 +114,20 @@ jobs:
         run: |
           node <<'NODE'
           const baseUrl = process.env.CLIENT_PUBLIC_URL.replace(/\/$/, "");
-          const indexResponse = await fetch(`${baseUrl}/`, { cache: "no-store" });
+          const routeBodies = [];
 
-          if (!indexResponse.ok) {
-            throw new Error(`Index request failed: ${indexResponse.status} ${indexResponse.statusText}`);
+          for (const route of ["/", "/test"]) {
+            const response = await fetch(`${baseUrl}${route}`, { cache: "no-store" });
+
+            if (!response.ok) {
+              throw new Error(`Client route failed ${route}: ${response.status} ${response.statusText}`);
+            }
+
+            routeBodies.push(await response.text());
           }
 
-          const html = await indexResponse.text();
-          const refs = [...html.matchAll(/(?:src|href)="([^"]+)"/g)]
+          const refs = routeBodies
+            .flatMap((html) => [...html.matchAll(/(?:src|href)="([^"]+)"/g)])
             .map((match) => match[1])
             .filter((href) => href.startsWith("/_expo/") || href === "/favicon.ico");
           const assetUrls = [...new Set(refs.map((href) => new URL(href, baseUrl).toString()))];

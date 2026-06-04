@@ -5,19 +5,19 @@ const normalizeUrl = (value) => value.replace(/\/$/, "");
 const clientUrl = normalizeUrl(
   process.env.CLIENT_PUBLIC_URL ||
     process.env.EXPO_PUBLIC_URL ||
-    "https://teacher-bo.leed.at"
+    "https://teacher-bo.leed.at",
 );
 const apiUrl = normalizeUrl(
   process.env.CLIENT_PUBLIC_API_URL ||
     process.env.EXPO_PUBLIC_API_URL ||
-    "https://b92c_b9ejghdi28.leed.at"
+    "https://b92c_b9ejghdi28.leed.at",
 );
 const socketUrl = normalizeUrl(
   process.env.CLIENT_PUBLIC_SOCKET_URL ||
     process.env.EXPO_PUBLIC_SOCKET_URL ||
     process.env.CLIENT_PUBLIC_URL ||
     process.env.EXPO_PUBLIC_URL ||
-    "https://teacher-bo.leed.at"
+    "https://teacher-bo.leed.at",
 );
 
 const assert = (condition, message) => {
@@ -33,16 +33,25 @@ const readText = async (url, options) => {
   return { response, body };
 };
 
-const verifyClientAssets = async () => {
-  const { response, body } = await readText(`${clientUrl}/`, {
-    cache: "no-store",
-  });
-
-  assert(response.ok, `client index failed: ${response.status}`);
-
-  const refs = [...body.matchAll(/(?:src|href)="([^"]+)"/g)]
+const extractAssetRefs = (body) => {
+  return [...body.matchAll(/(?:src|href)="([^"]+)"/g)]
     .map((match) => match[1])
     .filter((href) => href.startsWith("/_expo/") || href === "/favicon.ico");
+};
+
+const verifyClientAssets = async () => {
+  const routeBodies = [];
+
+  for (const route of ["/", "/test"]) {
+    const { response, body } = await readText(`${clientUrl}${route}`, {
+      cache: "no-store",
+    });
+
+    assert(response.ok, `client route failed: ${route} ${response.status}`);
+    routeBodies.push(body);
+  }
+
+  const refs = routeBodies.flatMap(extractAssetRefs);
 
   const assetUrls = [...new Set(refs.map((href) => new URL(href, clientUrl)))];
   const jsUrls = assetUrls.filter((url) => url.pathname.endsWith(".js"));
@@ -64,13 +73,13 @@ const verifyClientAssets = async () => {
   });
   assert(
     bundle.response.ok,
-    `bundle failed: ${bundle.response.status} ${runtimeBundle}`
+    `bundle failed: ${bundle.response.status} ${runtimeBundle}`,
   );
   assert(
     [`SOCKET_URL:"${socketUrl}"`, `"SOCKET_URL":"${socketUrl}"`].some(
-      (fragment) => bundle.body.includes(fragment)
+      (fragment) => bundle.body.includes(fragment),
     ),
-    `bundle socket url mismatch: expected ${socketUrl}`
+    `bundle socket url mismatch: expected ${socketUrl}`,
   );
 };
 
@@ -81,7 +90,7 @@ const verifyApi = async () => {
   assert(health.response.ok, `health failed: ${health.response.status}`);
   assert(
     health.body.includes("Board Game Assistant"),
-    `unexpected health body: ${health.body}`
+    `unexpected health body: ${health.body}`,
   );
 
   const preflight = await fetch(`${apiUrl}/api/graphql`, {
@@ -94,7 +103,7 @@ const verifyApi = async () => {
   });
   assert(
     preflight.status === 204 || preflight.status === 200,
-    `preflight failed: ${preflight.status}`
+    `preflight failed: ${preflight.status}`,
   );
 
   const graphql = await readText(`${apiUrl}/api/graphql`, {
@@ -108,7 +117,7 @@ const verifyApi = async () => {
   assert(graphql.response.ok, `graphql failed: ${graphql.response.status}`);
   assert(
     graphql.body.includes('"__typename":"Query"'),
-    `unexpected graphql body: ${graphql.body}`
+    `unexpected graphql body: ${graphql.body}`,
   );
 };
 

@@ -69,3 +69,28 @@ The official `whisper-server` is file-upload oriented over HTTP. It is usable fo
 ## Recommendation
 
 Proceed only if the first implementation is an internal, serialized, CPU-only `base` service with a fallback to `tiny` for smoke testing. Do not remove all AWS Transcribe code in the first pass; keep a provider switch so production can roll back quickly if Korean accuracy or latency is not acceptable on this host.
+
+## Test Route Implementation
+
+On 2026-06-04, a separate `/test` Expo Router page was added for whisper.cpp testing without replacing the existing voice-chat or AWS Transcribe Streaming path.
+
+- Client route: `client/app/test.tsx`.
+- Client stack registration: `client/app/_layout.tsx`.
+- Test API: `POST /api/test/whisper`, implemented under `server/src/test`.
+- Test health API: `GET /api/test/whisper/health`.
+- The server endpoint accepts multipart `audio`, forwards it to `STT_SERVER_URL/inference`, and normalizes whisper.cpp output into `text`, `segments`, `durationMs`, `model`, `language`, and `serviceUrl`.
+- Existing `server/src/transcribe` Socket.IO and AWS Transcribe code remains unchanged.
+- Backend deploy now starts `teacher-bo-whisper` on `biblabely_network` with the official `ghcr.io/ggml-org/whisper.cpp:main` image, model files under `/opt/teacher-bo/whisper-models`, no host port, `WHISPER_MODEL=base`, `WHISPER_THREADS=2`, `WHISPER_CPUS=2`, and `WHISPER_MEMORY=768m`.
+- `teacher-bo-server` receives `STT_SERVER_URL=http://teacher-bo-whisper:8098` and `STT_MODEL`.
+- `client/scripts/copy-canvaskit.js` makes `yarn export:web` copy `canvaskit.wasm` into `_expo/static/js/web/`, matching the deployed Skia asset path during local and Actions exports.
+- Client production verification now checks both `/` and `/test` route asset references.
+
+Validation completed during implementation:
+
+- `cd server && yarn test whisper-test.service --runInBand`
+- `cd server && yarn type-check`
+- `cd server && yarn lint:check`
+- `cd client && npx tsc --noEmit`
+- `cd client && yarn lint`
+- `cd client && yarn export:web`
+- Playwright opened `/test` through a local static fallback server and verified the route renders the upload controls, offline health state, and result surface.
