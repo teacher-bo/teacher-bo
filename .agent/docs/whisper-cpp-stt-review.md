@@ -53,8 +53,8 @@ The official `whisper-server` is file-upload oriented over HTTP. It is usable fo
   - `--network=biblabely_network`
   - no published host port
   - `--cpus=2`
-  - `--memory=768m` for `base`, lower only if benchmarking confirms stability
-  - `STT_MODEL=base`
+  - `--memory=1536m` for the current `small` experiment
+  - `STT_MODEL=small`
   - `STT_THREADS=2`
 - Add a deployment health check from `biblabely_network`.
 - Keep Amazon Polly credentials because Polly is separate from Transcribe and still used by `server/src/polly`.
@@ -80,7 +80,7 @@ On 2026-06-04, a separate `/test` Expo Router page was added for whisper.cpp tes
 - Test health API: `GET /api/test/whisper/health`.
 - The server endpoint accepts multipart `audio`, forwards it to `STT_SERVER_URL/inference`, and normalizes whisper.cpp output into `text`, `segments`, `durationMs`, `model`, `language`, and `serviceUrl`.
 - Existing `server/src/transcribe` Socket.IO and AWS Transcribe code remains unchanged.
-- Backend deploy now starts `whisper` on `biblabely_network` with the official `ghcr.io/ggml-org/whisper.cpp:main` image, model files under `/opt/teacher-bo/whisper-models`, no host port, `WHISPER_MODEL=base`, `WHISPER_THREADS=2`, `WHISPER_CPUS=2`, and `WHISPER_MEMORY=768m`.
+- Backend deploy now starts `whisper` on `biblabely_network` with the official `ghcr.io/ggml-org/whisper.cpp:main` image, model files under `/opt/teacher-bo/whisper-models`, no host port, `WHISPER_MODEL=small`, `WHISPER_THREADS=2`, `WHISPER_CPUS=2`, and `WHISPER_MEMORY=1536m`.
 - `teacher-bo-server` receives `STT_SERVER_URL=http://whisper:8098` and `STT_MODEL`.
 - `client/scripts/copy-canvaskit.js` makes `yarn export:web` copy `canvaskit.wasm` into `_expo/static/js/web/`, matching the deployed Skia asset path during local and Actions exports.
 - Client production verification now checks both `/` and `/test` route asset references.
@@ -98,3 +98,7 @@ Validation completed during implementation:
 ## Deploy Failure Follow-up
 
 On 2026-06-04, GitHub Actions run `26934967394` job `79463089355` failed during the whisper.cpp health check. The `whisper` container exited immediately because `whisper-server` rejected the unsupported `--no-context` option. The deploy command now omits that option and keeps the internal Docker DNS name as `whisper`, so other containers on `biblabely_network` can call `http://whisper:8098`.
+
+## Small Model Experiment
+
+On 2026-06-04, the default deployment model was raised from `base` to `small` after `/test` showed acceptable speed but weak recognition quality. The container memory limit was raised from `768m` to `1536m`. This is still a single CPU-only internal service on the shared host, so latency and swap behavior should be watched after deploy.

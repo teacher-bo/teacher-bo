@@ -70,7 +70,7 @@ export class WhisperTestService {
         text: this.extractText(response.data),
         segments: this.extractSegments(response.data),
         durationMs: Date.now() - startedAt,
-        model: this.configService.get<string>('STT_MODEL', 'base'),
+        model: this.configService.get<string>('STT_MODEL', 'small'),
         language,
         serviceUrl,
       };
@@ -88,13 +88,13 @@ export class WhisperTestService {
       return {
         ok: true,
         serviceUrl,
-        model: this.configService.get<string>('STT_MODEL', 'base'),
+        model: this.configService.get<string>('STT_MODEL', 'small'),
       };
     } catch {
       return {
         ok: false,
         serviceUrl,
-        model: this.configService.get<string>('STT_MODEL', 'base'),
+        model: this.configService.get<string>('STT_MODEL', 'small'),
       };
     }
   }

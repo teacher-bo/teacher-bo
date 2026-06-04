@@ -70,13 +70,13 @@ jobs:
           RAG_REPOSITORY: teacher-bo-rag
           WHISPER_CONTAINER: whisper
           WHISPER_IMAGE: ghcr.io/ggml-org/whisper.cpp:main
-          WHISPER_MODEL: ${{ vars.WHISPER_MODEL || 'base' }}
+          WHISPER_MODEL: ${{ vars.WHISPER_MODEL || 'small' }}
           SERVER_PORT: 8095
           RAG_PORT: 8096
           WHISPER_PORT: 8098
           WHISPER_THREADS: ${{ vars.WHISPER_THREADS || '2' }}
           WHISPER_CPUS: ${{ vars.WHISPER_CPUS || '2' }}
-          WHISPER_MEMORY: ${{ vars.WHISPER_MEMORY || '768m' }}
+          WHISPER_MEMORY: ${{ vars.WHISPER_MEMORY || '1536m' }}
           AWS_REGION: ap-northeast-2
           APP_AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           APP_AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

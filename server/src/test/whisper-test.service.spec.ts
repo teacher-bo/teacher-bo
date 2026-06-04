@@ -18,7 +18,7 @@ describe('WhisperTestService', () => {
 
     const configValues: Record<string, string> = {
       STT_SERVER_URL: 'http://whisper:8098',
-      STT_MODEL: 'base',
+      STT_MODEL: 'small',
     };
     const configService = {
       get: jest.fn((key: string, defaultValue?: string) => {
@@ -64,7 +64,7 @@ describe('WhisperTestService', () => {
         text: '루미큐브는 14개로 시작합니다.',
       },
     ]);
-    expect(result.model).toBe('base');
+    expect(result.model).toBe('small');
     expect(result.language).toBe('ko');
   });
 
@@ -80,7 +80,7 @@ describe('WhisperTestService', () => {
     await expect(service.health()).resolves.toEqual({
       ok: true,
       serviceUrl: 'http://whisper:8098',
-      model: 'base',
+      model: 'small',
     });
     expect(mockedAxios.get).toHaveBeenCalledWith(
       'http://whisper:8098/health',
