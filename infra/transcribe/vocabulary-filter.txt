@@ -6,4 +6,5 @@ Phrase	SoundsLike	IPA	DisplayAs
 사버타지			사보타지
 보세요			보쌤
 보쌈			보쌤
-			
+오셈			보쌤
+보셈			보쌤
