@@ -39,7 +39,7 @@ The downloaded benchmark models and official Docker image were removed after the
 
 The current server path is `client Socket.IO audioChunk -> server/src/transcribe/audio.gateway.ts -> server/src/transcribe/transcribe.service.ts -> AWS Transcribe Streaming`. VAD is already a separate HTTP service at `VAD_SERVER_URL=http://biblabely-vad:8094`.
 
-The best fit is to add a separate internal STT container, for example `teacher-bo-whisper`, on `biblabely_network`, then inject `STT_SERVER_URL=http://teacher-bo-whisper:8098` into `teacher-bo-server`. The NestJS `TranscribeService` should keep the existing Socket.IO event contract and delegate transcription to this internal service instead of creating an AWS Transcribe stream.
+The best fit is to add a separate internal STT container named `whisper` on `biblabely_network`, then inject `STT_SERVER_URL=http://whisper:8098` into `teacher-bo-server`. The NestJS `TranscribeService` should keep the existing Socket.IO event contract and delegate transcription to this internal service instead of creating an AWS Transcribe stream.
 
 The official `whisper-server` is file-upload oriented over HTTP. It is usable for utterance-level transcription after VAD ends, but it is not a drop-in replacement for Amazon Transcribe's partial streaming event model. If the product needs live partial subtitles, a small wrapper service should own chunk buffering and call `whisper.cpp` per utterance or maintain a custom streaming process.
 
@@ -47,9 +47,9 @@ The official `whisper-server` is file-upload oriented over HTTP. It is usable fo
 
 - Add a `whisper-server/` or `stt-server/` Docker image that uses `ghcr.io/ggml-org/whisper.cpp:main` or builds whisper.cpp from source.
 - Persist models under `/opt/teacher-bo/whisper-models` on the host or bake the selected model into the image for reproducible Actions deploys.
-- Add ECR repository `teacher-bo-whisper`.
+- Use the official `ghcr.io/ggml-org/whisper.cpp:main` image directly unless a custom wrapper is needed.
 - Add a reusable `build-whisper.yml` and extend `deploy-backend.yml`.
-- Create and run `teacher-bo-whisper` with:
+- Create and run `whisper` with:
   - `--network=biblabely_network`
   - no published host port
   - `--cpus=2`
@@ -80,8 +80,8 @@ On 2026-06-04, a separate `/test` Expo Router page was added for whisper.cpp tes
 - Test health API: `GET /api/test/whisper/health`.
 - The server endpoint accepts multipart `audio`, forwards it to `STT_SERVER_URL/inference`, and normalizes whisper.cpp output into `text`, `segments`, `durationMs`, `model`, `language`, and `serviceUrl`.
 - Existing `server/src/transcribe` Socket.IO and AWS Transcribe code remains unchanged.
-- Backend deploy now starts `teacher-bo-whisper` on `biblabely_network` with the official `ghcr.io/ggml-org/whisper.cpp:main` image, model files under `/opt/teacher-bo/whisper-models`, no host port, `WHISPER_MODEL=base`, `WHISPER_THREADS=2`, `WHISPER_CPUS=2`, and `WHISPER_MEMORY=768m`.
-- `teacher-bo-server` receives `STT_SERVER_URL=http://teacher-bo-whisper:8098` and `STT_MODEL`.
+- Backend deploy now starts `whisper` on `biblabely_network` with the official `ghcr.io/ggml-org/whisper.cpp:main` image, model files under `/opt/teacher-bo/whisper-models`, no host port, `WHISPER_MODEL=base`, `WHISPER_THREADS=2`, `WHISPER_CPUS=2`, and `WHISPER_MEMORY=768m`.
+- `teacher-bo-server` receives `STT_SERVER_URL=http://whisper:8098` and `STT_MODEL`.
 - `client/scripts/copy-canvaskit.js` makes `yarn export:web` copy `canvaskit.wasm` into `_expo/static/js/web/`, matching the deployed Skia asset path during local and Actions exports.
 - Client production verification now checks both `/` and `/test` route asset references.
 
@@ -94,3 +94,7 @@ Validation completed during implementation:
 - `cd client && yarn lint`
 - `cd client && yarn export:web`
 - Playwright opened `/test` through a local static fallback server and verified the route renders the upload controls, offline health state, and result surface.
+
+## Deploy Failure Follow-up
+
+On 2026-06-04, GitHub Actions run `26934967394` job `79463089355` failed during the whisper.cpp health check. The `whisper` container exited immediately because `whisper-server` rejected the unsupported `--no-context` option. The deploy command now omits that option and keeps the internal Docker DNS name as `whisper`, so other containers on `biblabely_network` can call `http://whisper:8098`.

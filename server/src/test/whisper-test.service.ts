@@ -104,7 +104,7 @@ export class WhisperTestService {
       this.configService.get<string>('STT_SERVER_URL') ||
       this.configService.get<string>('WHISPER_SERVER_URL');
 
-    return (configured || 'http://teacher-bo-whisper:8098').replace(/\/$/, '');
+    return (configured || 'http://whisper:8098').replace(/\/$/, '');
   }
 
   private normalizeLanguage(language: string | undefined): string {

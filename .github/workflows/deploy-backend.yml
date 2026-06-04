@@ -68,7 +68,7 @@ jobs:
           DEPLOY_RAG: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.rag == 'true' }}
           SERVER_REPOSITORY: teacher-bo-server
           RAG_REPOSITORY: teacher-bo-rag
-          WHISPER_CONTAINER: teacher-bo-whisper
+          WHISPER_CONTAINER: whisper
           WHISPER_IMAGE: ghcr.io/ggml-org/whisper.cpp:main
           WHISPER_MODEL: ${{ vars.WHISPER_MODEL || 'base' }}
           SERVER_PORT: 8095
@@ -159,7 +159,7 @@ jobs:
               --memory="$WHISPER_MEMORY" \
               -v /opt/teacher-bo/whisper-models:/models \
               "$WHISPER_IMAGE" \
-              "whisper-server --host 0.0.0.0 --port $WHISPER_PORT -m /models/ggml-$WHISPER_MODEL.bin -t $WHISPER_THREADS -l ko --convert --no-context"
+              "whisper-server --host 0.0.0.0 --port $WHISPER_PORT -m /models/ggml-$WHISPER_MODEL.bin -t $WHISPER_THREADS -l ko --convert"
             for attempt in $(seq 1 12); do
               if docker_cmd_check run --rm --network biblabely_network curlimages/curl:8.10.1 \
                 -fsS "http://$WHISPER_CONTAINER:$WHISPER_PORT/health" >/dev/null; then

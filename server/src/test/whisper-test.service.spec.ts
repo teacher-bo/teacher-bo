@@ -17,7 +17,7 @@ describe('WhisperTestService', () => {
     jest.resetAllMocks();
 
     const configValues: Record<string, string> = {
-      STT_SERVER_URL: 'http://teacher-bo-whisper:8098',
+      STT_SERVER_URL: 'http://whisper:8098',
       STT_MODEL: 'base',
     };
     const configService = {
@@ -52,7 +52,7 @@ describe('WhisperTestService', () => {
 
     const [url, payload, config] = mockedAxios.post.mock.calls[0];
 
-    expect(url).toBe('http://teacher-bo-whisper:8098/inference');
+    expect(url).toBe('http://whisper:8098/inference');
     expect(typeof (payload as FormData).getHeaders).toBe('function');
     expect(config?.timeout).toBe(180000);
     expect(result.text).toBe('루미큐브는 14개로 시작합니다.');
@@ -79,11 +79,11 @@ describe('WhisperTestService', () => {
 
     await expect(service.health()).resolves.toEqual({
       ok: true,
-      serviceUrl: 'http://teacher-bo-whisper:8098',
+      serviceUrl: 'http://whisper:8098',
       model: 'base',
     });
     expect(mockedAxios.get).toHaveBeenCalledWith(
-      'http://teacher-bo-whisper:8098/health',
+      'http://whisper:8098/health',
       { timeout: 5000 },
     );
   });
