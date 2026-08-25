@@ -10,7 +10,7 @@
 
 ## 기술 스택
 
-- FastAPI, OpenAI GPT-4o-mini, Upstage Embeddings, ChromaDB, LangChain, AWS DynamoDB
+- FastAPI, OpenAI GPT-5.6 Luna, DeepInfra Qwen3 Embeddings, ChromaDB, LangChain, Redis
 
 ## 폴더 구조
 

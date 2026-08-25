@@ -52,9 +52,6 @@ class PromptTemplate:
     #Context:
     {context}
 
-    #Format:
-    {format_instructions}
-
     #Question:
     {question}
     """.strip()
