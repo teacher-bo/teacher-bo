@@ -62,7 +62,7 @@ Teacher Bo는 보드게임 플레이어들이 게임 규칙을 쉽게 이해하�
 
 ### AI/ML
 
-- **LLM**: OpenAI GPT-4o-mini
+- **LLM**: OpenAI GPT-5.6 Luna (reasoning effort `none`, Structured Outputs)
 - **Embeddings**: DeepInfra Qwen3 Embedding 8B
 - **Vector DB**: ChromaDB
 - **Framework**: LangChain, FastAPI

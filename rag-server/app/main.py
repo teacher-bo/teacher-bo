@@ -1,9 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from app.core.chain import validate_llm_config
 from app.routers import chat
 
 load_dotenv()
+validate_llm_config()
 
 app = FastAPI(
     title="보드게임 규칙 전문가 챗봇 API",

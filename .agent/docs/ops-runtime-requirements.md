@@ -31,12 +31,16 @@ The Expo web client remains a static S3 plus CloudFront deployment and is not pa
 
 ## Runtime External Keys
 
-- `OPENAI_API_KEY`: used by `rag-server` LangChain `ChatOpenAI` for GPT-4o-mini answers.
+- `OPENAI_API_KEY`: used by `rag-server` LangChain `ChatOpenAI` for GPT-5.6 Luna answers.
 - `DEEPINFRA_API_KEY`: used by `rag-server` runtime retrieval and Actions vector generation for DeepInfra Qwen3 embeddings.
 - `DEEPINFRA_BASE_URL`: optional variable, defaults to `https://api.deepinfra.com/v1/openai`.
 - `RAG_EMBEDDING_MODEL`: optional variable, defaults to `Qwen/Qwen3-Embedding-8B`.
 - `RAG_EMBEDDING_QUERY_INSTRUCTION`: optional variable for Qwen3 query prefixing.
 - `RAG_EMBEDDING_BATCH_SIZE`: optional variable, defaults to `64`.
+- `RAG_LLM_MODEL`: optional variable, defaults to `gpt-5.6-luna`. Set it to roll back to a previous model (e.g. `gpt-4o-mini`) without a code change.
+- `RAG_REASONING_EFFORT`: optional variable, defaults to `none`. Applies only to reasoning models (`gpt-5*`, `o1/o3/o4*`); allowed values are `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`.
+- `RAG_LLM_TEMPERATURE`: optional variable, defaults to `0.3`. Applies only to non-reasoning models; reasoning models reject `temperature` with a 400 error, so it is never sent for them.
+- `RAG_RETRIEVE_K`: optional variable, defaults to `5`.
 - `UPSTAGE_API_KEY`: optional only for `rag-vector-db-generator/loaders/pdf_ocr_loader.py` OCR utility, not used by production RAG embedding/runtime.
 - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`: used by the main server for Amazon Transcribe Streaming and Amazon Polly.
 - `REDIS_PASSWORD`: used by deployment to create/access global Redis and by `teacher-bo-rag` for session history.
@@ -55,7 +59,7 @@ The Expo web client remains a static S3 plus CloudFront deployment and is not pa
 - Backend deployment validates `OPENAI_API_KEY`, `DEEPINFRA_API_KEY`, and `REDIS_PASSWORD` before replacing RAG containers, and health checks preserve retry behavior even when Dockerized curl returns a non-zero status.
 - Backend deployment reads `CLIENT_URL` from a GitHub variable or secret, and removes stale Docker containers publishing port `8095` before starting `teacher-bo-server`.
 - All GitHub Actions AWS credentials now use the single `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` secret pair. The old `RAG_AWS_*` and `STT_AWS_*` credential names are not used.
-- GitHub Variables may override `DEEPINFRA_BASE_URL`, `RAG_EMBEDDING_MODEL`, `RAG_EMBEDDING_QUERY_INSTRUCTION`, and `RAG_EMBEDDING_BATCH_SIZE`; defaults are wired into build and deploy workflows.
+- GitHub Variables may override `DEEPINFRA_BASE_URL`, `RAG_EMBEDDING_MODEL`, `RAG_EMBEDDING_QUERY_INSTRUCTION`, `RAG_EMBEDDING_BATCH_SIZE`, `RAG_LLM_MODEL`, `RAG_REASONING_EFFORT`, `RAG_LLM_TEMPERATURE`, and `RAG_RETRIEVE_K`; defaults are wired into build and deploy workflows.
 - Legacy Elastic Beanstalk workflows for main server, RAG server, VAD server, vector DB S3 upload, and Bedrock KB RAG sync were removed from the active workflow set.
 - On 2026-05-27, `https://teacher-bo.leed.at/` served `client-build/index.html` while the latest Expo web assets were uploaded to the bucket root. The page shell loaded, but `/_expo/...` JS and CSS resolved through the CloudFront function to missing `client-build/_expo/...` objects and returned S3 `AccessDenied`. The current root build was copied into `client-build/` for immediate recovery, the client deployment workflow was corrected to upload future builds to that prefix, the workflow now verifies deployed index asset references after CloudFront invalidation, and the client ESLint config recognizes CommonJS script globals used by the local env scripts.
 - On 2026-05-27, the `b92c_b9ejghdi28.leed.at` DNS record pointed to the shared `bible` server, but Nginx had no matching `server_name`, so HTTPS requests fell through to the Biblabely default vhost and `/socket.io` returned 404. `infra/nginx/teacher-bo.conf` now documents the required vhost: `/api/*`, `/health`, `/socket.io`, and `/api/socket.io` proxy to `teacher-bo-server` on port `8095`, with CORS preflight support for `https://teacher-bo.leed.at`.

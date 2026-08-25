@@ -64,7 +64,7 @@ rag-server/
 ## 🔧 기술 스택
 
 - **Framework**: FastAPI
-- **LLM**: OpenAI GPT-4o-mini
+- **LLM**: OpenAI GPT-5.6 Luna (reasoning effort `none`, Structured Outputs)
 - **Embeddings**: DeepInfra Qwen3 Embedding 8B
 - **Vector DB**: ChromaDB
 - **RAG Framework**: LangChain
