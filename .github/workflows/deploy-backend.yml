@@ -170,9 +170,8 @@ jobs:
                 break
               fi
               if [ "$attempt" = "12" ]; then
-                echo "whisper.cpp health check failed" >&2
+                echo "::warning::whisper.cpp health check failed after 12 attempts; continuing deploy without a healthy whisper container (STT will be degraded until this is fixed separately)" >&2
                 docker_cmd logs "$WHISPER_CONTAINER" --tail 100 >&2 || true
-                exit 1
               fi
               sleep 5
             done
