@@ -54,7 +54,7 @@ The Expo web client remains a static S3 plus CloudFront deployment and is not pa
 - Deployment workflow reruns can be triggered by workflow metadata changes when direct GitHub Actions rerun permission is unavailable; workflow run names include the commit SHA for easier tracking.
 - Backend workflow run names include the GitHub run number and commit SHA so secret refresh reruns can be distinguished in Actions.
 - Backend images are pushed to ECR repositories `teacher-bo-server` and `teacher-bo-rag` with the commit SHA tag.
-- Deployment uses SSH secrets `SERVER_HOST`, `SERVER_USERNAME`, `SERVER_PASSWORD`, and `SSH_PRIVATE_KEY`, matching the `NLP-Biblabely` server deploy pattern.
+- Deployment first brings up a WireGuard tunnel to the relay with `RELAY_WG_PRIVATE_KEY` (peer `10.77.0.40`), then SSHes to `10.77.0.1:22` inside it with `SERVER_USERNAME`, `SERVER_PASSWORD`, and `SSH_PRIVATE_KEY`, matching the `NLP-Biblabely` server deploy pattern.
 - AWS/ECR and app runtime secrets use `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `OPENAI_API_KEY`, `DEEPINFRA_API_KEY`, `REDIS_PASSWORD`, and optional `JWT_SECRET`.
 - Backend deployment validates `OPENAI_API_KEY`, `DEEPINFRA_API_KEY`, and `REDIS_PASSWORD` before replacing RAG containers, and health checks preserve retry behavior even when Dockerized curl returns a non-zero status.
 - Backend deployment reads `CLIENT_URL` from a GitHub variable or secret, and removes stale Docker containers publishing port `8095` before starting `teacher-bo-server`.

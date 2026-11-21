@@ -59,6 +59,30 @@ jobs:
     if: ${{ always() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.server == 'true' || needs.changes.outputs.rag == 'true') }}
     runs-on: ubuntu-latest
     steps:
+      - name: Connect to the relay over WireGuard
+        env:
+          WG_PRIVATE_KEY: ${{ secrets.RELAY_WG_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if ! command -v wg >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq --no-install-recommends wireguard-tools
+          fi
+          sudo install -d -m 0700 /etc/wireguard
+          printf '%s' "$WG_PRIVATE_KEY" | sudo install -m 0600 /dev/stdin /etc/wireguard/relay.key
+          sudo ip link add wg0 type wireguard
+          sudo wg set wg0 private-key /etc/wireguard/relay.key peer R5dVOdchtYSJi9TIZkBDbawFBJA6VhF20b7AKqnp/TM= endpoint 3.36.140.235:51820 allowed-ips 10.77.0.1/32 persistent-keepalive 25
+          sudo ip address add 10.77.0.40/32 dev wg0
+          sudo ip link set wg0 up
+          sudo ip route add 10.77.0.1/32 dev wg0
+          for attempt in $(seq 1 15); do
+            if timeout 3 bash -c '</dev/tcp/10.77.0.1/22' 2>/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "WireGuard tunnel to the relay did not come up" >&2
+          exit 1
       - name: Deploy backend containers
         uses: appleboy/ssh-action@v1.2.0
         env:
@@ -100,7 +124,7 @@ jobs:
           LANGCHAIN_API_KEY: ${{ secrets.LANGCHAIN_API_KEY }}
           LANGCHAIN_PROJECT: ${{ vars.LANGCHAIN_PROJECT }}
         with:
-          host: ${{ secrets.SERVER_HOST }}
+          host: 10.77.0.1
           username: ${{ secrets.SERVER_USERNAME }}
           passphrase: ${{ secrets.SERVER_PASSWORD }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
